@@ -14,7 +14,7 @@ export default defineConfig({
     port: 3000,
     host: true,
   },
-  base: '/',
+  base: '/The-Smurf/', // Tên repo của bạn
   build: {
     outDir: 'dist',
     sourcemap: false,
