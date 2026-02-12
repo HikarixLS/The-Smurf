@@ -1,4 +1,4 @@
-import { ROUTES } from './constants';
+import { ROUTES } from '@/utils/constants';
 
 // Router configuration
 export const routes = {
