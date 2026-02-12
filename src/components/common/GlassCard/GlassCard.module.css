@@ -1,0 +1,40 @@
+.glassCard {
+  background: var(--glass-bg-medium);
+  backdrop-filter: blur(var(--blur-medium));
+  -webkit-backdrop-filter: blur(var(--blur-medium));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--glass-shadow);
+  transition: all var(--transition-normal) ease;
+}
+
+.glassCard.clickable {
+  cursor: pointer;
+}
+
+.glassCard.clickable:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 16px 48px 0 rgba(31, 38, 135, 0.5);
+  background: var(--glass-bg-heavy);
+}
+
+.glassCard.light {
+  background: var(--glass-bg-light);
+  backdrop-filter: blur(var(--blur-light));
+  -webkit-backdrop-filter: blur(var(--blur-light));
+}
+
+.glassCard.heavy {
+  background: var(--glass-bg-heavy);
+  backdrop-filter: blur(var(--blur-heavy));
+  -webkit-backdrop-filter: blur(var(--blur-heavy));
+}
+
+.glassCard.noPadding {
+  padding: 0;
+}
+
+.glassCard.fullHeight {
+  height: 100%;
+}
