@@ -30,7 +30,7 @@ const PageLoader = () => (
 
 const AppRouter = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/The-Smurf">
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path={routes.HOME} element={<Home />} />
