@@ -1,19 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-    FiArrowLeft, FiSend, FiUsers, FiPlay, FiPause, FiLogOut,
-    FiCopy, FiCheck, FiEdit2
+    FiArrowLeft, FiSend, FiUsers, FiPlay, FiPause,
+    FiCopy, FiCheck, FiEdit2, FiAlertCircle
 } from 'react-icons/fi';
 import Header from '@/components/layout/Header/Header';
 import { watchPartyService } from '@/services/firebase/watchPartyService';
 import { movieService } from '@/services/api/movieService';
 import { useAuth } from '@/services/firebase/AuthContext';
+import {
+    sendPlayerCommand, PlayerCommand,
+    checkDrift, estimateHostTime,
+    createHeartbeat, createBufferDetector,
+} from '@/services/watchParty/syncEngine';
 import styles from './WatchPartyRoom.module.css';
 
 const WatchPartyRoom = () => {
     const { roomId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
+
+    // State
     const [room, setRoom] = useState(null);
     const [movie, setMovie] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -23,31 +30,40 @@ const WatchPartyRoom = () => {
     const [currentEpisode, setCurrentEpisode] = useState(0);
     const [editingName, setEditingName] = useState(false);
     const [nickname, setNickname] = useState('');
-    const chatEndRef = useRef(null);
+    const [syncStatus, setSyncStatus] = useState('waiting'); // waiting | synced | drifted | buffering
+    const [localTime, setLocalTime] = useState(0);
+
+    // Refs — "Flag" pattern to prevent infinite loops
     const iframeRef = useRef(null);
+    const chatEndRef = useRef(null);
+    const isSeeking = useRef(false);       // Flag: are we currently programmatically seeking?
+    const isLocalAction = useRef(false);    // Flag: is this a local user action (not sync)?
+    const lastSyncTime = useRef(0);         // Last synced host time
+    const heartbeatRef = useRef(null);
+    const bufferDetectorRef = useRef(createBufferDetector());
     const prevMembersRef = useRef(null);
+    const roomRef = useRef(null);           // Latest room state (avoid stale closures)
+
     const session = watchPartyService.getSession();
 
-    // Initialize nickname from Google account or session
+    // Keep roomRef in sync
+    useEffect(() => { roomRef.current = room; }, [room]);
+
+    // ---- Init nickname ----
     useEffect(() => {
         if (user?.displayName) {
             setNickname(user.displayName);
-            // Update session name with Google name
             watchPartyService.updateName(user.displayName);
         } else {
             setNickname(session.name);
         }
     }, [user]);
 
+    // ---- Join room & listen ----
     useEffect(() => {
-        // Join room with display name
         const displayName = user?.displayName || session.name;
         watchPartyService.updateName(displayName);
-        watchPartyService.joinRoom(roomId).catch(err => {
-            console.error('Join error:', err);
-        });
-
-        // Send join notification
+        watchPartyService.joinRoom(roomId).catch(console.error);
         watchPartyService.sendMessage(roomId, `📢 ${displayName} đã vào phòng`);
 
         // Listen to room updates
@@ -57,15 +73,13 @@ const WatchPartyRoom = () => {
                 return;
             }
 
-            // Detect new members joining (notifications)
+            // Detect join/leave via member count change
             if (prevMembersRef.current && roomData.members) {
-                const prevKeys = Object.keys(prevMembersRef.current);
+                const prevKeys = new Set(Object.keys(prevMembersRef.current));
                 const newKeys = Object.keys(roomData.members);
-                // Find newly joined members
                 newKeys.forEach(key => {
-                    if (!prevKeys.includes(key) && key !== session.id) {
-                        const newMember = roomData.members[key];
-                        // The join message is already sent by the joiner
+                    if (!prevKeys.has(key) && key !== session.id) {
+                        // New member detected (their join message is sent by them)
                     }
                 });
             }
@@ -77,33 +91,149 @@ const WatchPartyRoom = () => {
             }
             setLoading(false);
 
-            // Fetch movie data if not loaded
+            // Fetch movie if needed
             if (!movie && roomData.movieSlug) {
                 movieService.getMovieDetail(roomData.movieSlug).then(res => {
                     if (res?.data?.item) setMovie(res.data.item);
                 }).catch(() => { });
             }
+
+            // ── Sync logic for non-host ──
+            if (roomData.hostId !== session.id && roomData.playback && !isSeeking.current) {
+                const estimated = estimateHostTime(
+                    roomData.playback.currentTime || 0,
+                    roomData.playback.updatedAt || Date.now(),
+                    roomData.playback.isPlaying
+                );
+
+                const { needsSync, drift } = checkDrift(lastSyncTime.current, estimated);
+
+                if (needsSync && iframeRef.current) {
+                    isSeeking.current = true;
+                    sendPlayerCommand(iframeRef.current, PlayerCommand.SEEK, estimated);
+                    setTimeout(() => { isSeeking.current = false; }, 1000);
+                    setSyncStatus('drifted');
+                } else {
+                    setSyncStatus('synced');
+                }
+
+                // Sync play/pause state
+                if (iframeRef.current) {
+                    if (roomData.playback.isPlaying) {
+                        sendPlayerCommand(iframeRef.current, PlayerCommand.PLAY);
+                    } else {
+                        sendPlayerCommand(iframeRef.current, PlayerCommand.PAUSE);
+                    }
+                }
+            }
         });
 
-        // Listen to messages
-        const unsubMsgs = watchPartyService.onMessages(roomId, (msgs) => {
-            setMessages(msgs);
-        });
+        const unsubMsgs = watchPartyService.onMessages(roomId, setMessages);
 
         return () => {
             unsubRoom();
             unsubMsgs();
-            // Send leave notification
             const name = user?.displayName || session.name;
             watchPartyService.sendMessage(roomId, `👋 ${name} đã rời phòng`);
             watchPartyService.leaveRoom(roomId);
         };
     }, [roomId]);
 
+    // ---- postMessage listener — receive events from iframe ----
+    useEffect(() => {
+        const handleMessage = (e) => {
+            const data = e.data;
+            if (!data || data.type !== 'smurfSync') return;
+
+            bufferDetectorRef.current.reportProgress(data.currentTime || 0);
+            setLocalTime(data.currentTime || 0);
+            lastSyncTime.current = data.currentTime || 0;
+
+            const currentRoom = roomRef.current;
+            const isHost = currentRoom?.hostId === session.id;
+
+            switch (data.event) {
+                case 'heartbeat':
+                case 'timeUpdate':
+                    // Host broadcasts their time to Firebase
+                    if (isHost && !isSeeking.current) {
+                        watchPartyService.syncPlayback(roomId, {
+                            currentTime: data.currentTime,
+                            isPlaying: !data.paused,
+                        });
+                    }
+
+                    // Check buffering
+                    if (data.buffering) {
+                        setSyncStatus('buffering');
+                        if (isHost) {
+                            watchPartyService.syncPlayback(roomId, { isPlaying: false });
+                            watchPartyService.sendMessage(roomId, '⏳ Đang đợi tải video...');
+                        }
+                    }
+                    break;
+
+                case 'play':
+                    if (isHost && !isLocalAction.current) {
+                        watchPartyService.syncPlayback(roomId, {
+                            currentTime: data.currentTime,
+                            isPlaying: true,
+                        });
+                        watchPartyService.updateRoomStatus(roomId, 'playing');
+                    }
+                    break;
+
+                case 'pause':
+                    if (isHost && !isLocalAction.current) {
+                        watchPartyService.syncPlayback(roomId, {
+                            currentTime: data.currentTime,
+                            isPlaying: false,
+                        });
+                        watchPartyService.updateRoomStatus(roomId, 'paused');
+                    }
+                    break;
+
+                case 'seeked':
+                    if (isHost && !isSeeking.current) {
+                        watchPartyService.syncPlayback(roomId, {
+                            currentTime: data.currentTime,
+                        });
+                    }
+                    break;
+
+                case 'buffering':
+                    setSyncStatus('buffering');
+                    break;
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [roomId]);
+
+    // ---- Heartbeat: periodically request time from iframe ----
+    useEffect(() => {
+        heartbeatRef.current = createHeartbeat(() => {
+            if (iframeRef.current) {
+                sendPlayerCommand(iframeRef.current, PlayerCommand.GET_TIME);
+            }
+
+            // Check buffer detector
+            if (bufferDetectorRef.current.check()) {
+                setSyncStatus('buffering');
+            }
+        });
+
+        heartbeatRef.current.start();
+        return () => heartbeatRef.current?.stop();
+    }, []);
+
     // Auto-scroll chat
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    // ---- Handlers ----
 
     const handleSendMessage = async (e) => {
         e.preventDefault();
@@ -112,19 +242,31 @@ const WatchPartyRoom = () => {
         setNewMessage('');
     };
 
-    const handlePlayPause = async () => {
+    const handlePlayPause = useCallback(async () => {
         if (room?.hostId !== session.id) return;
+
+        isLocalAction.current = true;
         const isPlaying = room?.playback?.isPlaying;
+
+        if (iframeRef.current) {
+            if (isPlaying) {
+                sendPlayerCommand(iframeRef.current, PlayerCommand.PAUSE);
+            } else {
+                sendPlayerCommand(iframeRef.current, PlayerCommand.PLAY);
+            }
+        }
+
         await watchPartyService.syncPlayback(roomId, {
             isPlaying: !isPlaying,
+            currentTime: localTime,
         });
         await watchPartyService.updateRoomStatus(roomId, !isPlaying ? 'playing' : 'paused');
-
-        // Send notification
         await watchPartyService.sendMessage(roomId,
             !isPlaying ? '▶️ Host đã bấm phát' : '⏸️ Host đã tạm dừng'
         );
-    };
+
+        setTimeout(() => { isLocalAction.current = false; }, 500);
+    }, [room, localTime, roomId]);
 
     const handleEpisodeChange = async (epIdx) => {
         if (room?.hostId !== session.id) return;
@@ -144,29 +286,30 @@ const WatchPartyRoom = () => {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleLeave = async () => {
-        navigate('/watch-party');
-    };
+    const handleLeave = () => navigate('/watch-party');
 
     const handleSaveNickname = () => {
         if (nickname.trim()) {
             watchPartyService.updateName(nickname.trim());
             setEditingName(false);
-            // Update member name in room
-            if (room) {
-                watchPartyService.joinRoom(roomId);
-            }
+            if (room) watchPartyService.joinRoom(roomId);
         }
     };
 
+    // ---- Derived ----
     const isHost = room?.hostId === session.id;
     const members = room?.members ? Object.values(room.members) : [];
     const episodes = movie?.episodes?.[0]?.server_data || [];
     const currentVideo = episodes[currentEpisode];
+    const videoSrc = currentVideo?.link_embed || '';
 
-    // Determine video source - prefer m3u8, fallback to embed
-    const videoSrc = currentVideo?.link_m3u8 || currentVideo?.link_embed || '';
-    const isEmbed = !currentVideo?.link_m3u8 && currentVideo?.link_embed;
+    // Sync status indicator
+    const syncIndicator = {
+        waiting: { icon: '⏳', text: 'Đang chờ', color: '#fbbf24' },
+        synced: { icon: '✅', text: 'Đồng bộ', color: '#22c55e' },
+        drifted: { icon: '🔄', text: 'Đang đồng bộ...', color: '#667eea' },
+        buffering: { icon: '⏳', text: 'Đang tải...', color: '#ef4444' },
+    }[syncStatus] || {};
 
     if (loading) return (
         <div className={styles.loadingPage}>
@@ -180,7 +323,6 @@ const WatchPartyRoom = () => {
             <Header />
             <main className={styles.room}>
                 <div className={styles.layout}>
-                    {/* Main content */}
                     <div className={styles.mainContent}>
                         {/* Top bar */}
                         <div className={styles.topBar}>
@@ -191,8 +333,11 @@ const WatchPartyRoom = () => {
                                 <span className={`${styles.statusDot} ${styles[room?.status || 'waiting']}`} />
                                 {room?.movieOriginName || room?.movieName}
                             </div>
+                            <div className={styles.syncIndicator} style={{ color: syncIndicator.color }}>
+                                {syncIndicator.icon} {syncIndicator.text}
+                            </div>
                             <button className={styles.copyBtn} onClick={handleCopyLink}>
-                                {copied ? <><FiCheck /> Đã copy</> : <><FiCopy /> Chia sẻ link</>}
+                                {copied ? <><FiCheck /> Đã copy</> : <><FiCopy /> Chia sẻ</>}
                             </button>
                         </div>
 
@@ -217,15 +362,19 @@ const WatchPartyRoom = () => {
                         {/* Controls */}
                         <div className={styles.controls}>
                             <div className={styles.controlLeft}>
-                                {isHost && (
+                                {isHost ? (
                                     <button className={styles.controlBtn} onClick={handlePlayPause}>
                                         {room?.playback?.isPlaying ? <FiPause /> : <FiPlay />}
-                                        {room?.playback?.isPlaying ? 'Tạm dừng' : 'Phát'}
+                                        {room?.playback?.isPlaying ? ' Tạm dừng' : ' Phát'}
                                     </button>
-                                )}
-                                {!isHost && (
+                                ) : (
                                     <span className={styles.syncLabel}>
                                         🔄 Đồng bộ với {room?.hostName}
+                                    </span>
+                                )}
+                                {syncStatus === 'buffering' && (
+                                    <span className={styles.bufferWarning}>
+                                        <FiAlertCircle size={14} /> Đang đợi tải video...
                                     </span>
                                 )}
                             </div>
@@ -307,7 +456,7 @@ const WatchPartyRoom = () => {
                                 </div>
                             ) : (
                                 messages.map((msg) => {
-                                    const isSystem = msg.text.startsWith('📢') || msg.text.startsWith('👋') || msg.text.startsWith('▶️') || msg.text.startsWith('⏸️') || msg.text.startsWith('📺');
+                                    const isSystem = msg.text.startsWith('📢') || msg.text.startsWith('👋') || msg.text.startsWith('▶️') || msg.text.startsWith('⏸️') || msg.text.startsWith('📺') || msg.text.startsWith('⏳');
                                     return (
                                         <div
                                             key={msg.id}

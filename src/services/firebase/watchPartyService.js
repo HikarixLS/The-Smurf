@@ -31,6 +31,13 @@ const getSession = () => {
     return newSession;
 };
 
+// Update session name
+const updateName = (newName) => {
+    const session = getSession();
+    session.name = newName;
+    localStorage.setItem('smurf_wp_session', JSON.stringify(session));
+};
+
 export const watchPartyService = {
     // Check if service is available
     isAvailable: () => isFirebaseConfigured() && database !== null,
