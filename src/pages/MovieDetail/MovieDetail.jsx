@@ -140,9 +140,9 @@ const MovieDetail = () => {
             </div>
 
             <div className={styles.heroInfo}>
-              <h1 className={styles.title}>{movie.name}</h1>
-              {movie.origin_name && (
-                <p className={styles.originName}>{movie.origin_name}</p>
+              <h1 className={styles.title}>{movie.origin_name || movie.name}</h1>
+              {movie.origin_name && movie.name !== movie.origin_name && (
+                <p className={styles.originName}>{movie.name}</p>
               )}
 
               <div className={styles.metaRow}>
@@ -264,6 +264,43 @@ const MovieDetail = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Series airing schedule */}
+                {movie.type === 'series' && movie.status !== 'completed' && (
+                  <div className={styles.scheduleSection}>
+                    <h3 className={styles.scheduleTitle}>📅 Lịch chiếu</h3>
+                    <div className={styles.scheduleCard}>
+                      <div className={styles.scheduleInfo}>
+                        <div className={styles.scheduleRow}>
+                          <span className={styles.scheduleLabel}>Tiến độ</span>
+                          <span className={styles.scheduleValue}>
+                            {movie.episode_current || '?'} / {movie.episode_total || '?'} tập
+                          </span>
+                        </div>
+                        <div className={styles.progressBarSchedule}>
+                          <div
+                            className={styles.progressFill}
+                            style={{
+                              width: movie.episode_total
+                                ? `${(parseInt(movie.episode_current) / parseInt(movie.episode_total)) * 100}%`
+                                : '0%'
+                            }}
+                          />
+                        </div>
+                        <div className={styles.scheduleRow}>
+                          <span className={styles.scheduleLabel}>Trạng thái</span>
+                          <span className={`${styles.scheduleValue} ${styles.statusOngoing}`}>
+                            🔴 Đang phát sóng
+                          </span>
+                        </div>
+                        <div className={styles.scheduleRow}>
+                          <span className={styles.scheduleLabel}>Cập nhật</span>
+                          <span className={styles.scheduleValue}>Hàng tuần</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

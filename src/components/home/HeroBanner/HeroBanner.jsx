@@ -38,6 +38,7 @@ const HeroBanner = ({ movies = [] }) => {
     const current = featuredMovies[currentIndex];
     const posterUrl = getImageUrl(current.poster_url || current.thumb_url);
     const rating = current.tmdb?.vote_average || 0;
+    const displayTitle = current.origin_name || current.name;
 
     return (
         <section className={styles.heroBanner}>
@@ -45,9 +46,13 @@ const HeroBanner = ({ movies = [] }) => {
             <div className={styles.backdrop}>
                 <img
                     src={posterUrl}
-                    alt={current.name}
+                    alt={displayTitle}
                     className={styles.backdropImage}
                     key={currentIndex}
+                    fetchpriority="high"
+                    loading="eager"
+                    width={1920}
+                    height={1080}
                 />
                 <div className={styles.gradientOverlay} />
             </div>
@@ -56,11 +61,11 @@ const HeroBanner = ({ movies = [] }) => {
             <div className={styles.content}>
                 <div className={styles.info}>
                     <h1 className={styles.title} key={`title-${currentIndex}`}>
-                        {current.name}
+                        {displayTitle}
                     </h1>
 
-                    {current.origin_name && (
-                        <p className={styles.originName}>{current.origin_name}</p>
+                    {current.origin_name && current.name !== current.origin_name && (
+                        <p className={styles.originName}>{current.name}</p>
                     )}
 
                     <div className={styles.meta}>
@@ -110,8 +115,10 @@ const HeroBanner = ({ movies = [] }) => {
                         >
                             <img
                                 src={getImageUrl(movie.thumb_url || movie.poster_url)}
-                                alt={movie.name}
+                                alt={movie.origin_name || movie.name}
                                 loading="lazy"
+                                width={120}
+                                height={68}
                             />
                         </div>
                     ))}

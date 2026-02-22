@@ -2,7 +2,7 @@ import {
     ref, push, set, get, update, remove, onValue, off,
     serverTimestamp, query, orderByChild, limitToLast
 } from 'firebase/database';
-import { database, isFirebaseConfigured, signInAnon, getCurrentUser } from './config';
+import { database, isFirebaseConfigured, getCurrentUser } from './config';
 
 const ROOMS_REF = 'watchPartyRooms';
 const MESSAGES_REF = 'watchPartyMessages';

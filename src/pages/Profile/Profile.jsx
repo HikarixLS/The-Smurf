@@ -1,16 +1,23 @@
 import React from 'react';
-import { FiUser, FiHeart, FiClock } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { FiUser, FiHeart, FiClock, FiLogOut } from 'react-icons/fi';
 import Header from '@/components/layout/Header/Header';
 import Footer from '@/components/layout/Footer/Footer';
 import GlassCard from '@/components/common/GlassCard/GlassCard';
+import { useAuth } from '@/services/firebase/AuthContext';
 import styles from './Profile.module.css';
 
 const Profile = () => {
-  // Mock user data
-  const user = {
-    name: 'Guest User',
-    email: 'guest@thesmurf.com',
-    joinedDate: '2025-01-01',
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (err) {
+      console.error('Sign out error:', err);
+    }
   };
 
   const stats = [
@@ -28,11 +35,17 @@ const Profile = () => {
           <div className={styles.grid}>
             <GlassCard className={styles.userCard}>
               <div className={styles.avatar}>
-                <FiUser size={64} />
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt={user.displayName} className={styles.avatarImg} referrerPolicy="no-referrer" />
+                ) : (
+                  <FiUser size={64} />
+                )}
               </div>
-              <h2 className={styles.name}>{user.name}</h2>
-              <p className={styles.email}>{user.email}</p>
-              <p className={styles.joined}>Tham gia từ {user.joinedDate}</p>
+              <h2 className={styles.name}>{user?.displayName || 'User'}</h2>
+              <p className={styles.email}>{user?.email || ''}</p>
+              <button className={styles.signOutBtn} onClick={handleSignOut}>
+                <FiLogOut size={16} /> Đăng xuất
+              </button>
             </GlassCard>
 
             <div className={styles.statsGrid}>
@@ -67,3 +80,4 @@ const Profile = () => {
 };
 
 export default Profile;
+

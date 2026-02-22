@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+import { getAnalytics, logEvent, setUserId, setUserProperties } from 'firebase/analytics';
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -10,6 +11,7 @@ const firebaseConfig = {
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 // Check if Firebase is configured
@@ -23,26 +25,71 @@ const isFirebaseConfigured = () => {
 let app = null;
 let database = null;
 let auth = null;
+let analytics = null;
 
 if (isFirebaseConfigured()) {
     try {
         app = initializeApp(firebaseConfig);
         database = getDatabase(app);
         auth = getAuth(app);
+        // Initialize Google Analytics (GA4)
+        if (typeof window !== 'undefined') {
+            analytics = getAnalytics(app);
+        }
     } catch (error) {
         console.warn('Firebase initialization error:', error);
     }
 }
 
-// Anonymous auth
-export const signInAnon = async () => {
+// ---- Analytics helpers ----
+
+// Log a page view
+export const logPageView = (pagePath, pageTitle) => {
+    if (!analytics) return;
+    logEvent(analytics, 'page_view', {
+        page_path: pagePath,
+        page_title: pageTitle,
+    });
+};
+
+// Log a custom event
+export const logCustomEvent = (eventName, params = {}) => {
+    if (!analytics) return;
+    logEvent(analytics, eventName, params);
+};
+
+// Set user ID for analytics (call after sign-in)
+export const setAnalyticsUser = (user) => {
+    if (!analytics || !user) return;
+    setUserId(analytics, user.uid);
+    setUserProperties(analytics, {
+        display_name: user.displayName || '',
+        email_domain: user.email ? user.email.split('@')[1] : '',
+    });
+};
+
+// Google sign-in
+const googleProvider = new GoogleAuthProvider();
+
+export const signInWithGoogle = async () => {
     if (!auth) return null;
     try {
-        const result = await signInAnonymously(auth);
+        const result = await signInWithPopup(auth, googleProvider);
         return result.user;
     } catch (error) {
-        console.error('Anonymous sign-in error:', error);
-        return null;
+        console.error('Google sign-in error:', error);
+        throw error;
+    }
+};
+
+// Sign out
+export const signOut = async () => {
+    if (!auth) return;
+    try {
+        await firebaseSignOut(auth);
+    } catch (error) {
+        console.error('Sign out error:', error);
+        throw error;
     }
 };
 
@@ -60,5 +107,6 @@ export const getCurrentUser = () => {
     });
 };
 
-export { app, database, auth, isFirebaseConfigured };
+export { app, database, auth, analytics, isFirebaseConfigured };
 export default app;
+

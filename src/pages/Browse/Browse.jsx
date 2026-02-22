@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FiFilter, FiX, FiArrowDown } from 'react-icons/fi';
+import { FiFilter, FiX, FiArrowDown, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import Header from '@/components/layout/Header/Header';
 import Footer from '@/components/layout/Footer/Footer';
 import MovieGrid from '@/components/movie/MovieGrid/MovieGrid';
@@ -11,6 +11,7 @@ const TYPES = [
   { name: 'Tất cả', value: '' },
   { name: 'Phim lẻ', value: 'single' },
   { name: 'Phim bộ', value: 'series' },
+  { name: 'Phim chiếu rạp', value: 'hoathinh' },
 ];
 
 const SORT_OPTIONS = [
@@ -18,6 +19,19 @@ const SORT_OPTIONS = [
   { name: 'Năm sản xuất', value: 'year' },
   { name: 'Tên phim', value: '_id' },
 ];
+
+// Extra genres to inject if not already present
+const EXTRA_GENRES = [
+  { name: 'Bách Hợp', slug: 'bach-hop' },
+  { name: 'Đam Mỹ', slug: 'dam-my' },
+];
+
+// Fallback year list — always generate recent 25 years
+const generateFallbackYears = () =>
+  Array.from({ length: 25 }, (_, i) => {
+    const y = new Date().getFullYear() - i;
+    return { name: y.toString(), slug: y.toString() };
+  });
 
 const Browse = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -28,10 +42,18 @@ const Browse = () => {
   const [hasMore, setHasMore] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
 
+  // Collapsible filter sections
+  const [expandedSections, setExpandedSections] = useState({
+    type: true,
+    genre: false,
+    country: false,
+    year: false,
+  });
+
   // Dynamic filter lists from API
   const [genres, setGenres] = useState([]);
   const [countries, setCountries] = useState([]);
-  const [years, setYears] = useState([]);
+  const [years, setYears] = useState(generateFallbackYears());
   const [filtersLoaded, setFiltersLoaded] = useState(false);
 
   const type = searchParams.get('type') || '';
@@ -39,6 +61,17 @@ const Browse = () => {
   const country = searchParams.get('country') || '';
   const year = searchParams.get('year') || '';
   const sort = searchParams.get('sort') || 'modified.time';
+
+  // Auto-expand sections with active filters
+  useEffect(() => {
+    setExpandedSections(prev => ({
+      ...prev,
+      type: true,
+      genre: prev.genre || !!genre,
+      country: prev.country || !!country,
+      year: prev.year || !!year,
+    }));
+  }, [genre, country, year]);
 
   // Fetch filter lists from API on mount
   useEffect(() => {
@@ -51,7 +84,13 @@ const Browse = () => {
         ]);
 
         if (catRes.status === 'fulfilled') {
-          const items = catRes.value?.data?.items || catRes.value?.items || [];
+          let items = catRes.value?.data?.items || catRes.value?.items || [];
+          // Inject extra genres if not present
+          EXTRA_GENRES.forEach(extra => {
+            if (!items.find(g => g.slug === extra.slug)) {
+              items = [...items, extra];
+            }
+          });
           setGenres(items);
         }
         if (countryRes.status === 'fulfilled') {
@@ -59,8 +98,25 @@ const Browse = () => {
           setCountries(items);
         }
         if (yearRes.status === 'fulfilled') {
-          const items = yearRes.value?.data?.items || yearRes.value?.items || [];
-          setYears(items);
+          // Try multiple parsing strategies for API response
+          const raw = yearRes.value;
+          let items = raw?.data?.items || raw?.items || raw?.data || [];
+          // If it's directly an array of numbers
+          if (Array.isArray(items) && items.length > 0) {
+            const normalizedYears = items.map(y => {
+              if (typeof y === 'number' || typeof y === 'string') {
+                return { name: y.toString(), slug: y.toString() };
+              }
+              return {
+                name: (y.year || y.name || y.slug || '').toString(),
+                slug: (y.year || y.slug || y.name || '').toString(),
+              };
+            }).filter(y => y.name && y.name !== 'undefined');
+
+            if (normalizedYears.length > 0) {
+              setYears(normalizedYears);
+            }
+          }
         }
       } catch (e) {
         console.error('Error loading filters:', e);
@@ -83,6 +139,7 @@ const Browse = () => {
     try {
       let response;
 
+      // Priority: genre > country > year > type
       if (genre) {
         response = await movieService.getMoviesByCategory(genre, p, sort);
       } else if (country) {
@@ -94,10 +151,17 @@ const Browse = () => {
       }
 
       if (response?.data?.items) {
+        let items = response.data.items;
+
+        // Client-side year filter when using genre/country endpoint
+        if (year && (genre || country)) {
+          items = items.filter(m => m.year && m.year.toString() === year);
+        }
+
         if (p === 1) {
-          setMovies(response.data.items);
+          setMovies(items);
         } else {
-          setMovies(prev => [...prev, ...response.data.items]);
+          setMovies(prev => [...prev, ...items]);
         }
         const pagination = response.data.params?.pagination;
         if (pagination) {
@@ -117,12 +181,10 @@ const Browse = () => {
     fetchMovies(nextPage);
   };
 
+  // Allow combining filters (no mutual exclusion)
   const updateFilter = (key, value) => {
     const params = new URLSearchParams(searchParams);
     if (value) {
-      if (key === 'genre') { params.delete('country'); params.delete('year'); }
-      if (key === 'country') { params.delete('genre'); params.delete('year'); }
-      if (key === 'year') { params.delete('genre'); params.delete('country'); }
       params.set(key, value);
     } else {
       params.delete(key);
@@ -134,21 +196,26 @@ const Browse = () => {
     setSearchParams({});
   };
 
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
   const hasActiveFilters = type || genre || country || year;
 
   const getTitle = () => {
+    const parts = [];
     if (genre) {
       const found = genres.find(g => g.slug === genre);
-      return found ? found.name : 'Thể loại';
+      parts.push(found ? found.name : 'Thể loại');
     }
     if (country) {
       const found = countries.find(c => c.slug === country);
-      return found ? found.name : 'Quốc gia';
+      parts.push(found ? found.name : 'Quốc gia');
     }
-    if (year) return `Năm ${year}`;
-    if (type === 'single') return 'Phim lẻ';
-    if (type === 'series') return 'Phim bộ';
-    return 'Danh mục phim';
+    if (year) parts.push(`Năm ${year}`);
+    if (type === 'single') parts.push('Phim lẻ');
+    if (type === 'series') parts.push('Phim bộ');
+    return parts.length > 0 ? parts.join(' • ') : 'Danh mục phim';
   };
 
   return (
@@ -185,87 +252,106 @@ const Browse = () => {
             <div className={styles.filtersPanel}>
               {/* Type filter */}
               <div className={styles.filterGroup}>
-                <span className={styles.filterLabel}>Loại phim</span>
-                <div className={styles.filterOptions}>
-                  {TYPES.map(t => (
-                    <button
-                      key={t.value}
-                      className={`${styles.filterChip} ${type === t.value ? styles.chipActive : ''}`}
-                      onClick={() => updateFilter('type', t.value)}
-                    >
-                      {t.name}
-                    </button>
-                  ))}
-                </div>
+                <button className={styles.filterLabel} onClick={() => toggleSection('type')}>
+                  Loại phim
+                  {expandedSections.type ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+                </button>
+                {expandedSections.type && (
+                  <div className={styles.filterOptions}>
+                    {TYPES.map(t => (
+                      <button
+                        key={t.value}
+                        className={`${styles.filterChip} ${type === t.value ? styles.chipActive : ''}`}
+                        onClick={() => updateFilter('type', t.value)}
+                      >
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Genre filter - dynamic from API */}
               <div className={styles.filterGroup}>
-                <span className={styles.filterLabel}>Thể loại</span>
-                <div className={styles.filterOptions}>
-                  <button
-                    className={`${styles.filterChip} ${!genre ? styles.chipActive : ''}`}
-                    onClick={() => updateFilter('genre', '')}
-                  >
-                    Tất cả
-                  </button>
-                  {genres.map(g => (
+                <button className={styles.filterLabel} onClick={() => toggleSection('genre')}>
+                  Thể loại {genre && <span className={styles.activeIndicator}>•</span>}
+                  {expandedSections.genre ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+                </button>
+                {expandedSections.genre && (
+                  <div className={styles.filterOptions}>
                     <button
-                      key={g.slug}
-                      className={`${styles.filterChip} ${genre === g.slug ? styles.chipActive : ''}`}
-                      onClick={() => updateFilter('genre', g.slug)}
+                      className={`${styles.filterChip} ${!genre ? styles.chipActive : ''}`}
+                      onClick={() => updateFilter('genre', '')}
                     >
-                      {g.name}
+                      Tất cả
                     </button>
-                  ))}
-                  {!filtersLoaded && <span className={styles.filterLoading}>Đang tải...</span>}
-                </div>
+                    {genres.map(g => (
+                      <button
+                        key={g.slug}
+                        className={`${styles.filterChip} ${genre === g.slug ? styles.chipActive : ''}`}
+                        onClick={() => updateFilter('genre', g.slug)}
+                      >
+                        {g.name}
+                      </button>
+                    ))}
+                    {!filtersLoaded && <span className={styles.filterLoading}>Đang tải...</span>}
+                  </div>
+                )}
               </div>
 
               {/* Country filter - dynamic from API */}
               <div className={styles.filterGroup}>
-                <span className={styles.filterLabel}>Quốc gia</span>
-                <div className={styles.filterOptions}>
-                  <button
-                    className={`${styles.filterChip} ${!country ? styles.chipActive : ''}`}
-                    onClick={() => updateFilter('country', '')}
-                  >
-                    Tất cả
-                  </button>
-                  {countries.map(c => (
+                <button className={styles.filterLabel} onClick={() => toggleSection('country')}>
+                  Quốc gia {country && <span className={styles.activeIndicator}>•</span>}
+                  {expandedSections.country ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+                </button>
+                {expandedSections.country && (
+                  <div className={styles.filterOptions}>
                     <button
-                      key={c.slug}
-                      className={`${styles.filterChip} ${country === c.slug ? styles.chipActive : ''}`}
-                      onClick={() => updateFilter('country', c.slug)}
+                      className={`${styles.filterChip} ${!country ? styles.chipActive : ''}`}
+                      onClick={() => updateFilter('country', '')}
                     >
-                      {c.name}
+                      Tất cả
                     </button>
-                  ))}
-                  {!filtersLoaded && <span className={styles.filterLoading}>Đang tải...</span>}
-                </div>
+                    {countries.map(c => (
+                      <button
+                        key={c.slug}
+                        className={`${styles.filterChip} ${country === c.slug ? styles.chipActive : ''}`}
+                        onClick={() => updateFilter('country', c.slug)}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                    {!filtersLoaded && <span className={styles.filterLoading}>Đang tải...</span>}
+                  </div>
+                )}
               </div>
 
-              {/* Year filter - dynamic from API */}
+              {/* Year filter - always shows fallback years */}
               <div className={styles.filterGroup}>
-                <span className={styles.filterLabel}>Năm</span>
-                <div className={styles.filterOptions}>
-                  <button
-                    className={`${styles.filterChip} ${!year ? styles.chipActive : ''}`}
-                    onClick={() => updateFilter('year', '')}
-                  >
-                    Tất cả
-                  </button>
-                  {years.map(y => (
+                <button className={styles.filterLabel} onClick={() => toggleSection('year')}>
+                  Năm {year && <span className={styles.activeIndicator}>•</span>}
+                  {expandedSections.year ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+                </button>
+                {expandedSections.year && (
+                  <div className={styles.filterOptions}>
                     <button
-                      key={y.slug || y.name}
-                      className={`${styles.filterChip} ${year === (y.slug || y.name) ? styles.chipActive : ''}`}
-                      onClick={() => updateFilter('year', y.slug || y.name)}
+                      className={`${styles.filterChip} ${!year ? styles.chipActive : ''}`}
+                      onClick={() => updateFilter('year', '')}
                     >
-                      {y.name}
+                      Tất cả
                     </button>
-                  ))}
-                  {!filtersLoaded && <span className={styles.filterLoading}>Đang tải...</span>}
-                </div>
+                    {years.map(y => (
+                      <button
+                        key={y.slug || y.name}
+                        className={`${styles.filterChip} ${year === (y.slug || y.name) ? styles.chipActive : ''}`}
+                        onClick={() => updateFilter('year', y.slug || y.name)}
+                      >
+                        {y.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {hasActiveFilters && (
@@ -291,3 +377,4 @@ const Browse = () => {
 };
 
 export default Browse;
+

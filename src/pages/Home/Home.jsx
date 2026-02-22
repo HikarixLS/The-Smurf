@@ -11,6 +11,7 @@ const Home = () => {
   const [newMovies, setNewMovies] = useState([]);
   const [seriesMovies, setSeriesMovies] = useState([]);
   const [singleMovies, setSingleMovies] = useState([]);
+  const [theaterMovies, setTheaterMovies] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,10 +35,11 @@ const Home = () => {
         // /home endpoint not available, fall back to individual calls
       }
 
-      // Fetch series and single movies (always needed), plus fallback for new movies
+      // Fetch series, single, and theater movies
       const calls = [
         movieService.getSeries(1, 24),
         movieService.getSingleMovies(1, 24),
+        movieService.getMoviesByCategory('hanh-dong', 1, 'modified.time'), // Theater-like action movies
       ];
       if (!homeSuccess) {
         calls.push(movieService.getNewReleases(1, 24));
@@ -53,9 +55,13 @@ const Home = () => {
         setSingleMovies(results[1].value.data.items);
       }
 
+      if (results[2].status === 'fulfilled' && results[2].value?.data?.items) {
+        setTheaterMovies(results[2].value.data.items);
+      }
+
       // Fallback: if /home didn't work, use individual new releases call
-      if (!homeSuccess && results[2]?.status === 'fulfilled' && results[2].value?.data?.items) {
-        const items = results[2].value.data.items;
+      if (!homeSuccess && results[3]?.status === 'fulfilled' && results[3].value?.data?.items) {
+        const items = results[3].value.data.items;
         setFeaturedMovies(items.slice(0, 8));
         setNewMovies(items);
       }
@@ -81,6 +87,13 @@ const Home = () => {
           />
 
           <MovieRow
+            title="Phim Chiếu Rạp"
+            movies={theaterMovies}
+            loading={loading}
+            linkTo="/browse?type=hoathinh"
+          />
+
+          <MovieRow
             title="Phim Bộ Mới"
             movies={seriesMovies}
             loading={loading}
@@ -101,3 +114,4 @@ const Home = () => {
 };
 
 export default Home;
+

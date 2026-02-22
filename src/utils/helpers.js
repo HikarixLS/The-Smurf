@@ -50,11 +50,18 @@ export const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 };
 
-// Get image URL
+// Get image URL — use WebP format for ophim CDN
 export const getImageUrl = (path, baseUrl = 'https://img.ophim.live/uploads/movies/') => {
   if (!path) return 'https://via.placeholder.com/300x450?text=No+Image';
-  if (path.startsWith('http')) return path;
-  return baseUrl + path;
+  if (path.startsWith('http')) {
+    // Convert ophim URLs to webp
+    if (path.includes('img.ophim.live') && !path.endsWith('.webp')) {
+      return path.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+    }
+    return path;
+  }
+  const url = baseUrl + path;
+  return url.replace(/\.(jpg|jpeg|png)$/i, '.webp');
 };
 
 // Get movie slug from URL

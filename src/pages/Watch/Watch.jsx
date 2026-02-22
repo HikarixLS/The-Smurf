@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiMonitor, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import Header from '@/components/layout/Header/Header';
 import Footer from '@/components/layout/Footer/Footer';
+import VideoPlayer from '@/components/common/VideoPlayer/VideoPlayer';
 import MovieRow from '@/components/home/MovieRow/MovieRow';
 import Loader from '@/components/common/Loader/Loader';
 import { movieService } from '@/services/api/movieService';
@@ -78,7 +79,7 @@ const Watch = () => {
               <FiArrowLeft /> Quay lại
             </button>
             <div className={styles.nowPlaying}>
-              <span className={styles.movieName}>{movie.name}</span>
+              <span className={styles.movieName}>{movie.origin_name || movie.name}</span>
               {currentVideo && (
                 <span className={styles.episodeName}>- Tập {currentVideo.name}</span>
               )}
@@ -88,19 +89,17 @@ const Watch = () => {
           {/* Video Player */}
           <div className={styles.playerSection}>
             <div className={styles.playerWrapper}>
-              {currentVideo?.link_embed ? (
+              {currentVideo?.link_m3u8 ? (
+                <VideoPlayer
+                  src={currentVideo.link_m3u8}
+                  poster={movie.poster_url || movie.thumb_url}
+                />
+              ) : currentVideo?.link_embed ? (
                 <iframe
                   src={currentVideo.link_embed}
                   className={styles.player}
                   allowFullScreen
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                />
-              ) : currentVideo?.link_m3u8 ? (
-                <video
-                  src={currentVideo.link_m3u8}
-                  className={styles.player}
-                  controls
-                  autoPlay
                 />
               ) : (
                 <div className={styles.noVideo}>
@@ -160,7 +159,7 @@ const Watch = () => {
 
           {/* Movie info */}
           <div className={styles.movieInfo}>
-            <h2 className={styles.movieTitle}>{movie.name}</h2>
+            <h2 className={styles.movieTitle}>{movie.origin_name || movie.name}</h2>
             <div className={styles.meta}>
               {movie.year && <span>{movie.year}</span>}
               {movie.quality && <span className={styles.qualityTag}>{movie.quality}</span>}

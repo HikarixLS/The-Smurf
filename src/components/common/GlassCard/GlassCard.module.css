@@ -1,12 +1,53 @@
 .glassCard {
-  background: var(--glass-bg-medium);
-  backdrop-filter: blur(var(--blur-medium));
-  -webkit-backdrop-filter: blur(var(--blur-medium));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  box-shadow: var(--glass-shadow);
-  transition: all var(--transition-normal) ease;
+  position: relative;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg, 16px);
+  padding: var(--spacing-lg, 24px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 8px 32px rgba(0, 0, 0, 0.25),
+    0 0 80px rgba(120, 50, 255, 0.03);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* Liquid glass shimmer overlay */
+.glassCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.04),
+      transparent);
+  transition: left 0.6s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.glassCard:hover::before {
+  left: 150%;
+}
+
+/* Top edge refraction highlight */
+.glassCard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.06) 0%,
+      transparent 40%,
+      transparent 80%,
+      rgba(255, 255, 255, 0.02) 100%);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .glassCard.clickable {
@@ -15,20 +56,24 @@
 
 .glassCard.clickable:hover {
   transform: translateY(-8px);
-  box-shadow: 0 16px 48px 0 rgba(31, 38, 135, 0.5);
-  background: var(--glass-bg-heavy);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 20px 60px rgba(0, 0, 0, 0.35),
+    0 0 80px rgba(120, 50, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .glassCard.light {
-  background: var(--glass-bg-light);
-  backdrop-filter: blur(var(--blur-light));
-  -webkit-backdrop-filter: blur(var(--blur-light));
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
 }
 
 .glassCard.heavy {
-  background: var(--glass-bg-heavy);
-  backdrop-filter: blur(var(--blur-heavy));
-  -webkit-backdrop-filter: blur(var(--blur-heavy));
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(60px) saturate(200%);
+  -webkit-backdrop-filter: blur(60px) saturate(200%);
 }
 
 .glassCard.noPadding {

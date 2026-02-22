@@ -1,0 +1,310 @@
+.playerContainer {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+}
+
+.playerContainer.fullscreen {
+  border-radius: 0;
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Center play icon */
+.centerPlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+  z-index: 5;
+}
+
+.centerPlay:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Skip Intro */
+.skipIntro {
+  position: absolute;
+  bottom: 100px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s, transform 0.15s;
+  animation: fadeSlideIn 0.3s ease;
+}
+
+.skipIntro:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.03);
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Controls overlay */
+.controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 60px 16px 12px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+.controlsVisible {
+  opacity: 1;
+}
+
+/* Progress bar */
+.progressBar {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: height 0.15s;
+}
+
+.progressBar:hover {
+  height: 6px;
+}
+
+.progressBuffered {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+.progressPlayed {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #e50914, #ff6b6b);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+.progressThumb {
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  background: #e50914;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(229, 9, 20, 0.6);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.progressBar:hover .progressThumb {
+  opacity: 1;
+}
+
+/* Controls row */
+.controlsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.controlsLeft,
+.controlsRight {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Control buttons */
+.controlBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.controlBtn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.seekLabel {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  bottom: 6px;
+  right: 6px;
+}
+
+/* Volume */
+.volumeControl {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.volumeSlider {
+  width: 0;
+  opacity: 0;
+  transition: width 0.2s, opacity 0.2s;
+  accent-color: #e50914;
+  cursor: pointer;
+  height: 4px;
+}
+
+.volumeControl:hover .volumeSlider {
+  width: 80px;
+  opacity: 1;
+}
+
+/* Time display */
+.timeDisplay {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+/* Settings menu */
+.settingsWrapper {
+  position: relative;
+}
+
+.settingsMenu {
+  position: absolute;
+  bottom: 50px;
+  right: 0;
+  min-width: 180px;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 8px 0;
+  z-index: 20;
+  animation: fadeSlideIn 0.2s ease;
+}
+
+.settingsTitle {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 4px;
+}
+
+.qualityOption {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.qualityOption:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.qualityActive {
+  color: #e50914;
+  font-weight: 600;
+}
+
+.qualityActive::before {
+  content: '✓ ';
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .controls {
+    padding: 30px 8px 8px;
+  }
+
+  .controlBtn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .timeDisplay {
+    font-size: 11px;
+  }
+
+  .skipIntro {
+    bottom: 70px;
+    right: 12px;
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  .centerPlay {
+    width: 60px;
+    height: 60px;
+  }
+}

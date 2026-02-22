@@ -14,15 +14,19 @@ const MovieCard = ({ movie }) => {
 
   const posterUrl = getImageUrl(movie.poster_url || movie.thumb_url);
   const rating = movie.tmdb?.vote_average || movie.imdb?.rating || 0;
+  const displayTitle = movie.origin_name || movie.name;
+  const subTitle = movie.origin_name && movie.name !== movie.origin_name ? movie.name : '';
 
   return (
     <div className={styles.movieCard} onClick={handleClick}>
       <div className={styles.posterContainer}>
         <img
           src={posterUrl}
-          alt={movie.name}
+          alt={displayTitle}
           className={styles.poster}
           loading="lazy"
+          width={300}
+          height={450}
         />
 
         <div className={styles.badges}>
@@ -55,7 +59,8 @@ const MovieCard = ({ movie }) => {
       </div>
 
       <div className={styles.info}>
-        <h3 className={styles.title}>{movie.name}</h3>
+        <h3 className={styles.title}>{displayTitle}</h3>
+        {subTitle && <p className={styles.subTitle}>{subTitle}</p>}
 
         <div className={styles.meta}>
           {movie.year && <span className={styles.year}>{movie.year}</span>}

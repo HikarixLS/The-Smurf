@@ -694,3 +694,63 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Schedule section */
+.scheduleSection {
+  margin-top: 28px;
+}
+
+.scheduleTitle {
+  font-size: 18px;
+  color: var(--color-text-primary);
+  margin-bottom: 12px;
+}
+
+.scheduleCard {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.scheduleInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.scheduleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scheduleLabel {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.scheduleValue {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.statusOngoing {
+  color: #ef4444;
+}
+
+.progressBarSchedule {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
