@@ -24,6 +24,49 @@
   margin: 0;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sortWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.sortIcon {
+  position: absolute;
+  left: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.sortSelect {
+  appearance: none;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 10px 16px 10px 30px;
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.sortSelect:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.sortSelect option {
+  background: #1a1a2e;
+  color: #fff;
+}
+
 .filterToggle {
   display: flex;
   align-items: center;
@@ -41,6 +84,12 @@
 .filterToggle:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
+}
+
+.filterLoading {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+  padding: 6px 12px;
 }
 
 /* Filters panel */

@@ -1,45 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FiFilter, FiX } from 'react-icons/fi';
+import { useSearchParams } from 'react-router-dom';
+import { FiFilter, FiX, FiArrowDown } from 'react-icons/fi';
 import Header from '@/components/layout/Header/Header';
 import Footer from '@/components/layout/Footer/Footer';
 import MovieGrid from '@/components/movie/MovieGrid/MovieGrid';
 import { movieService } from '@/services/api/movieService';
 import styles from './Browse.module.css';
-
-const GENRES = [
-  { name: 'Tất cả', slug: '' },
-  { name: 'Hành Động', slug: 'hanh-dong' },
-  { name: 'Tình Cảm', slug: 'tinh-cam' },
-  { name: 'Hài Hước', slug: 'hai-huoc' },
-  { name: 'Kinh Dị', slug: 'kinh-di' },
-  { name: 'Viễn Tưởng', slug: 'vien-tuong' },
-  { name: 'Phiêu Lưu', slug: 'phieu-luu' },
-  { name: 'Hình Sự', slug: 'hinh-su' },
-  { name: 'Hoạt Hình', slug: 'hoat-hinh' },
-  { name: 'Tâm Lý', slug: 'tam-ly' },
-  { name: 'Chiến Tranh', slug: 'chien-tranh' },
-];
-
-const COUNTRIES = [
-  { name: 'Tất cả', slug: '' },
-  { name: 'Hàn Quốc', slug: 'han-quoc' },
-  { name: 'Trung Quốc', slug: 'trung-quoc' },
-  { name: 'Nhật Bản', slug: 'nhat-ban' },
-  { name: 'Thái Lan', slug: 'thai-lan' },
-  { name: 'Âu Mỹ', slug: 'au-my' },
-  { name: 'Việt Nam', slug: 'viet-nam' },
-  { name: 'Đài Loan', slug: 'dai-loan' },
-  { name: 'Ấn Độ', slug: 'an-do' },
-];
-
-const YEARS = [
-  { name: 'Tất cả', value: '' },
-  ...Array.from({ length: 10 }, (_, i) => {
-    const y = new Date().getFullYear() - i;
-    return { name: y.toString(), value: y.toString() };
-  }),
-];
 
 const TYPES = [
   { name: 'Tất cả', value: '' },
@@ -47,9 +13,14 @@ const TYPES = [
   { name: 'Phim bộ', value: 'series' },
 ];
 
+const SORT_OPTIONS = [
+  { name: 'Mới cập nhật', value: 'modified.time' },
+  { name: 'Năm sản xuất', value: 'year' },
+  { name: 'Tên phim', value: '_id' },
+];
+
 const Browse = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -57,16 +28,54 @@ const Browse = () => {
   const [hasMore, setHasMore] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
 
+  // Dynamic filter lists from API
+  const [genres, setGenres] = useState([]);
+  const [countries, setCountries] = useState([]);
+  const [years, setYears] = useState([]);
+  const [filtersLoaded, setFiltersLoaded] = useState(false);
+
   const type = searchParams.get('type') || '';
   const genre = searchParams.get('genre') || '';
   const country = searchParams.get('country') || '';
   const year = searchParams.get('year') || '';
+  const sort = searchParams.get('sort') || 'modified.time';
+
+  // Fetch filter lists from API on mount
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const [catRes, countryRes, yearRes] = await Promise.allSettled([
+          movieService.getCategories(),
+          movieService.getCountries(),
+          movieService.getYears(),
+        ]);
+
+        if (catRes.status === 'fulfilled') {
+          const items = catRes.value?.data?.items || catRes.value?.items || [];
+          setGenres(items);
+        }
+        if (countryRes.status === 'fulfilled') {
+          const items = countryRes.value?.data?.items || countryRes.value?.items || [];
+          setCountries(items);
+        }
+        if (yearRes.status === 'fulfilled') {
+          const items = yearRes.value?.data?.items || yearRes.value?.items || [];
+          setYears(items);
+        }
+      } catch (e) {
+        console.error('Error loading filters:', e);
+      } finally {
+        setFiltersLoaded(true);
+      }
+    };
+    fetchFilters();
+  }, []);
 
   useEffect(() => {
     setMovies([]);
     setPage(1);
     fetchMovies(1);
-  }, [type, genre, country, year]);
+  }, [type, genre, country, year, sort]);
 
   const fetchMovies = async (p) => {
     setLoading(true);
@@ -75,13 +84,13 @@ const Browse = () => {
       let response;
 
       if (genre) {
-        response = await movieService.getMoviesByCategory(genre, p);
+        response = await movieService.getMoviesByCategory(genre, p, sort);
       } else if (country) {
-        response = await movieService.getMoviesByCountry(country, p);
+        response = await movieService.getMoviesByCountry(country, p, sort);
       } else if (year) {
-        response = await movieService.getMoviesByYear(year, p);
+        response = await movieService.getMoviesByYear(year, p, sort);
       } else {
-        response = await movieService.getMovies(p, { type });
+        response = await movieService.getMovies(p, { type }, sort);
       }
 
       if (response?.data?.items) {
@@ -111,7 +120,6 @@ const Browse = () => {
   const updateFilter = (key, value) => {
     const params = new URLSearchParams(searchParams);
     if (value) {
-      // Clear other filter types when selecting a specific filter
       if (key === 'genre') { params.delete('country'); params.delete('year'); }
       if (key === 'country') { params.delete('genre'); params.delete('year'); }
       if (key === 'year') { params.delete('genre'); params.delete('country'); }
@@ -129,8 +137,14 @@ const Browse = () => {
   const hasActiveFilters = type || genre || country || year;
 
   const getTitle = () => {
-    if (genre) return GENRES.find(g => g.slug === genre)?.name || 'Thể loại';
-    if (country) return COUNTRIES.find(c => c.slug === country)?.name || 'Quốc gia';
+    if (genre) {
+      const found = genres.find(g => g.slug === genre);
+      return found ? found.name : 'Thể loại';
+    }
+    if (country) {
+      const found = countries.find(c => c.slug === country);
+      return found ? found.name : 'Quốc gia';
+    }
     if (year) return `Năm ${year}`;
     if (type === 'single') return 'Phim lẻ';
     if (type === 'series') return 'Phim bộ';
@@ -144,12 +158,27 @@ const Browse = () => {
         <div className={styles.container}>
           <div className={styles.header}>
             <h1 className={styles.title}>{getTitle()}</h1>
-            <button
-              className={styles.filterToggle}
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <FiFilter /> Bộ lọc
-            </button>
+            <div className={styles.headerActions}>
+              {/* Sort dropdown */}
+              <div className={styles.sortWrapper}>
+                <FiArrowDown className={styles.sortIcon} />
+                <select
+                  className={styles.sortSelect}
+                  value={sort}
+                  onChange={(e) => updateFilter('sort', e.target.value)}
+                >
+                  {SORT_OPTIONS.map(s => (
+                    <option key={s.value} value={s.value}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                className={styles.filterToggle}
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <FiFilter /> Bộ lọc
+              </button>
+            </div>
           </div>
 
           {showFilters && (
@@ -170,11 +199,17 @@ const Browse = () => {
                 </div>
               </div>
 
-              {/* Genre filter */}
+              {/* Genre filter - dynamic from API */}
               <div className={styles.filterGroup}>
                 <span className={styles.filterLabel}>Thể loại</span>
                 <div className={styles.filterOptions}>
-                  {GENRES.map(g => (
+                  <button
+                    className={`${styles.filterChip} ${!genre ? styles.chipActive : ''}`}
+                    onClick={() => updateFilter('genre', '')}
+                  >
+                    Tất cả
+                  </button>
+                  {genres.map(g => (
                     <button
                       key={g.slug}
                       className={`${styles.filterChip} ${genre === g.slug ? styles.chipActive : ''}`}
@@ -183,14 +218,21 @@ const Browse = () => {
                       {g.name}
                     </button>
                   ))}
+                  {!filtersLoaded && <span className={styles.filterLoading}>Đang tải...</span>}
                 </div>
               </div>
 
-              {/* Country filter */}
+              {/* Country filter - dynamic from API */}
               <div className={styles.filterGroup}>
                 <span className={styles.filterLabel}>Quốc gia</span>
                 <div className={styles.filterOptions}>
-                  {COUNTRIES.map(c => (
+                  <button
+                    className={`${styles.filterChip} ${!country ? styles.chipActive : ''}`}
+                    onClick={() => updateFilter('country', '')}
+                  >
+                    Tất cả
+                  </button>
+                  {countries.map(c => (
                     <button
                       key={c.slug}
                       className={`${styles.filterChip} ${country === c.slug ? styles.chipActive : ''}`}
@@ -199,22 +241,30 @@ const Browse = () => {
                       {c.name}
                     </button>
                   ))}
+                  {!filtersLoaded && <span className={styles.filterLoading}>Đang tải...</span>}
                 </div>
               </div>
 
-              {/* Year filter */}
+              {/* Year filter - dynamic from API */}
               <div className={styles.filterGroup}>
                 <span className={styles.filterLabel}>Năm</span>
                 <div className={styles.filterOptions}>
-                  {YEARS.map(y => (
+                  <button
+                    className={`${styles.filterChip} ${!year ? styles.chipActive : ''}`}
+                    onClick={() => updateFilter('year', '')}
+                  >
+                    Tất cả
+                  </button>
+                  {years.map(y => (
                     <button
-                      key={y.value}
-                      className={`${styles.filterChip} ${year === y.value ? styles.chipActive : ''}`}
-                      onClick={() => updateFilter('year', y.value)}
+                      key={y.slug || y.name}
+                      className={`${styles.filterChip} ${year === (y.slug || y.name) ? styles.chipActive : ''}`}
+                      onClick={() => updateFilter('year', y.slug || y.name)}
                     >
                       {y.name}
                     </button>
                   ))}
+                  {!filtersLoaded && <span className={styles.filterLoading}>Đang tải...</span>}
                 </div>
               </div>
 

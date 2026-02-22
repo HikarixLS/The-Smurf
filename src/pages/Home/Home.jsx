@@ -20,24 +20,44 @@ const Home = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [newRes, seriesRes, singleRes] = await Promise.allSettled([
-        movieService.getNewReleases(1, 24),
+      // Try the optimized single /home endpoint first
+      let homeSuccess = false;
+      try {
+        const homeRes = await movieService.getHomeData();
+        if (homeRes?.data?.items) {
+          const items = homeRes.data.items;
+          setFeaturedMovies(items.slice(0, 8));
+          setNewMovies(items);
+          homeSuccess = true;
+        }
+      } catch {
+        // /home endpoint not available, fall back to individual calls
+      }
+
+      // Fetch series and single movies (always needed), plus fallback for new movies
+      const calls = [
         movieService.getSeries(1, 24),
         movieService.getSingleMovies(1, 24),
-      ]);
+      ];
+      if (!homeSuccess) {
+        calls.push(movieService.getNewReleases(1, 24));
+      }
 
-      if (newRes.status === 'fulfilled' && newRes.value?.data?.items) {
-        const items = newRes.value.data.items;
+      const results = await Promise.allSettled(calls);
+
+      if (results[0].status === 'fulfilled' && results[0].value?.data?.items) {
+        setSeriesMovies(results[0].value.data.items);
+      }
+
+      if (results[1].status === 'fulfilled' && results[1].value?.data?.items) {
+        setSingleMovies(results[1].value.data.items);
+      }
+
+      // Fallback: if /home didn't work, use individual new releases call
+      if (!homeSuccess && results[2]?.status === 'fulfilled' && results[2].value?.data?.items) {
+        const items = results[2].value.data.items;
         setFeaturedMovies(items.slice(0, 8));
         setNewMovies(items);
-      }
-
-      if (seriesRes.status === 'fulfilled' && seriesRes.value?.data?.items) {
-        setSeriesMovies(seriesRes.value.data.items);
-      }
-
-      if (singleRes.status === 'fulfilled' && singleRes.value?.data?.items) {
-        setSingleMovies(singleRes.value.data.items);
       }
     } catch (err) {
       console.error('Error fetching home data:', err);
