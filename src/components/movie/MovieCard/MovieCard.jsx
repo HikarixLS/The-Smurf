@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiStar } from 'react-icons/fi';
+import { FiStar, FiPlay } from 'react-icons/fi';
 import PropTypes from 'prop-types';
 import { getImageUrl } from '@/utils/helpers';
 import styles from './MovieCard.module.css';
@@ -32,12 +32,23 @@ const MovieCard = ({ movie }) => {
                 {movie.quality}
               </span>
             )}
+            {movie.lang && (
+              <span className={`${styles.badge} ${styles.lang}`}>
+                {movie.lang}
+              </span>
+            )}
           </div>
           {movie.episode_current && (
             <span className={`${styles.badge} ${styles.episode}`}>
               {movie.episode_current}
             </span>
           )}
+        </div>
+
+        <div className={styles.playOverlay}>
+          <div className={styles.playIcon}>
+            <FiPlay />
+          </div>
         </div>
 
         <div className={styles.overlay} />
@@ -50,7 +61,7 @@ const MovieCard = ({ movie }) => {
           {movie.year && <span className={styles.year}>{movie.year}</span>}
           {rating > 0 && (
             <div className={styles.rating}>
-              <FiStar size={14} />
+              <FiStar size={12} />
               {rating.toFixed(1)}
             </div>
           )}
@@ -77,19 +88,14 @@ MovieCard.propTypes = {
     poster_url: PropTypes.string,
     thumb_url: PropTypes.string,
     quality: PropTypes.string,
+    lang: PropTypes.string,
     episode_current: PropTypes.string,
     year: PropTypes.number,
     category: PropTypes.arrayOf(
-      PropTypes.shape({
-        name: PropTypes.string,
-      })
+      PropTypes.shape({ name: PropTypes.string })
     ),
-    tmdb: PropTypes.shape({
-      vote_average: PropTypes.number,
-    }),
-    imdb: PropTypes.shape({
-      rating: PropTypes.number,
-    }),
+    tmdb: PropTypes.shape({ vote_average: PropTypes.number }),
+    imdb: PropTypes.shape({ rating: PropTypes.number }),
   }).isRequired,
 };
 

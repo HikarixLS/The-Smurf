@@ -1,0 +1,400 @@
+.watchParty {
+    min-height: 100vh;
+    background: var(--color-bg-primary, #0a0a0a);
+    padding-top: 80px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 4% 60px;
+}
+
+.header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    gap: 16px;
+}
+
+.title {
+    font-size: clamp(28px, 3.5vw, 36px);
+    font-weight: 700;
+    color: var(--color-text-primary, #fff);
+    margin: 0 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.subtitle {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 15px;
+    margin: 0 0 4px;
+}
+
+.identity {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 13px;
+    margin: 0;
+}
+
+.identity strong {
+    color: var(--color-accent, #667eea);
+}
+
+.createBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    background: var(--gradient-primary, linear-gradient(135deg, #667eea, #764ba2));
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+    flex-shrink: 0;
+}
+
+.createBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px rgba(102, 126, 234, 0.5);
+}
+
+.createBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Warning */
+.warning {
+    display: flex;
+    gap: 16px;
+    padding: 20px;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.2);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    color: #fbbf24;
+}
+
+.warning strong {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.warning p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.warning code {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+/* Create panel */
+.createPanel {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 28px;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.createPanel h3 {
+    color: var(--color-text-primary);
+    margin: 0 0 16px;
+    font-size: 18px;
+}
+
+.formGroup {
+    margin-bottom: 14px;
+}
+
+.formGroup label {
+    display: block;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 6px;
+}
+
+.input {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.input:focus {
+    border-color: var(--color-accent, #667eea);
+}
+
+.input::placeholder {
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.formActions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.submitBtn {
+    padding: 12px 28px;
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.submitBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.cancelBtn {
+    padding: 12px 20px;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.cancelBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Loading / Empty */
+.loadingState,
+.emptyState {
+    text-align: center;
+    padding: 60px 20px;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.emptyState h2 {
+    margin: 16px 0 8px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 22px;
+}
+
+.emptyState p {
+    max-width: 400px;
+    margin: 0 auto;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Rooms grid */
+.roomsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.roomCard {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.roomCard:hover {
+    transform: translateY(-4px);
+    border-color: rgba(102, 126, 234, 0.2);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.roomThumbnail {
+    position: relative;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+}
+
+.roomThumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+
+.roomCard:hover .roomThumbnail img {
+    transform: scale(1.05);
+}
+
+.roomOverlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.roomCard:hover .roomOverlay {
+    opacity: 1;
+}
+
+.joinBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.statusBadge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    backdrop-filter: blur(8px);
+}
+
+.playing {
+    background: rgba(239, 68, 68, 0.8);
+    color: white;
+}
+
+.waiting {
+    background: rgba(251, 191, 36, 0.8);
+    color: #000;
+}
+
+.paused {
+    background: rgba(102, 126, 234, 0.8);
+    color: white;
+}
+
+.roomInfo {
+    padding: 14px 16px;
+}
+
+.roomTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text-primary, #fff);
+    margin: 0 0 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.roomMeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.host {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.roomRight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.viewers {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--color-accent, #667eea);
+}
+
+.deleteBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.deleteBtn:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+    }
+
+    .roomsGrid {
+        grid-template-columns: 1fr;
+    }
+}

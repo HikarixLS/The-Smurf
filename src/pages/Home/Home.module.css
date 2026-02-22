@@ -1,29 +1,8 @@
 .home {
   min-height: 100vh;
-  padding: var(--spacing-xl) 0;
+  background: var(--color-bg-primary, #0a0a0a);
 }
 
-.section {
-  margin-bottom: var(--spacing-xl) * 2;
-}
-
-.sectionTitle {
-  font-size: var(--font-size-2xl);
-  font-weight: 700;
-  margin-bottom: var(--spacing-xl);
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-@media (max-width: 640px) {
-  .home {
-    padding: var(--spacing-lg) 0;
-  }
-
-  .sectionTitle {
-    font-size: var(--font-size-xl);
-    margin-bottom: var(--spacing-lg);
-  }
+.sections {
+  padding: 40px 0 60px;
 }

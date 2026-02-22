@@ -1,23 +1,23 @@
 // API Endpoints
 export const ENDPOINTS = {
   // Movie listings
-  MOVIES_NEW: '/danh-sach/phim-moi-cap-nhat',
-  MOVIES_FEATURE: '/danh-sach/phim-bo',
-  MOVIES_SERIES: '/danh-sach/phim-bo',
-  MOVIES_SINGLE: '/danh-sach/phim-le',
-  MOVIES_UPCOMING: '/danh-sach/phim-sap-chieu',
-  MOVIES_TRENDING: '/danh-sach/phim-moi-cap-nhat', // Same as new, sorted by views
+  MOVIES_NEW: '/v1/api/danh-sach/phim-moi-cap-nhat',
+  MOVIES_FEATURE: '/v1/api/danh-sach/phim-bo',
+  MOVIES_SERIES: '/v1/api/danh-sach/phim-bo',
+  MOVIES_SINGLE: '/v1/api/danh-sach/phim-le',
+  MOVIES_UPCOMING: '/v1/api/danh-sach/phim-sap-chieu',
+  MOVIES_TRENDING: '/v1/api/danh-sach/phim-moi-cap-nhat', // Same as new, sorted by views
 
   // Search
   SEARCH: '/v1/api/tim-kiem',
 
   // Movie details
-  MOVIE_DETAIL: '/phim', // /phim/{slug}
+  MOVIE_DETAIL: '/v1/api/phim', // /v1/api/phim/{slug}
 
   // Filters
-  CATEGORY: '/the-loai', // /the-loai/{slug}
-  COUNTRY: '/quoc-gia', // /quoc-gia/{slug}
-  YEAR: '/nam-phat-hanh', // /nam-phat-hanh/{year}
+  CATEGORY: '/v1/api/the-loai', // /v1/api/the-loai/{slug}
+  COUNTRY: '/v1/api/quoc-gia', // /v1/api/quoc-gia/{slug}
+  YEAR: '/v1/api/nam-phat-hanh', // /v1/api/nam-phat-hanh/{year}
 };
 
 export default ENDPOINTS;

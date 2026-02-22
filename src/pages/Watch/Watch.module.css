@@ -1,115 +1,270 @@
 .watch {
   min-height: 100vh;
-  background: #000;
-  padding: var(--spacing-lg) 0;
+  background: #050505;
+  padding-top: 70px;
+}
+
+.loadingPage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #050505;
+}
+
+.errorPage {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: white;
+}
+
+.errorPage button {
+  padding: 12px 32px;
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
 }
 
 .container {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 var(--spacing-lg);
+  padding: 0 16px;
+}
+
+/* Top bar */
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.backBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.nowPlaying {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.movieName {
+  color: var(--color-text-primary, #fff);
+  font-weight: 600;
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.episodeName {
+  color: var(--color-accent, #667eea);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* Player */
+.playerSection {
+  margin-bottom: 20px;
 }
 
 .playerWrapper {
   position: relative;
   width: 100%;
-  padding-top: 56.25%; /* 16:9 Aspect Ratio */
+  aspect-ratio: 16/9;
   background: #000;
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
   overflow: hidden;
-  margin-bottom: var(--spacing-xl);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
 }
 
 .player {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
   border: none;
+  display: block;
 }
 
-.info {
-  background: var(--glass-bg-heavy);
-  backdrop-filter: blur(var(--blur-heavy));
-  -webkit-backdrop-filter: blur(var(--blur-heavy));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  margin-bottom: var(--spacing-xl);
+.noVideo {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 16px;
 }
 
-.title {
-  font-size: var(--font-size-2xl);
+/* Server selector */
+.serverSection {
+  margin-bottom: 16px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.serverList {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.serverBtn {
+  padding: 8px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.serverBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.serverActive {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.4);
+  color: var(--color-accent);
+}
+
+/* Episode selector */
+.episodeSection {
+  margin-bottom: 20px;
+}
+
+.episodeToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: 12px 0;
+  font-size: 18px;
+}
+
+.episodeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.episodeBtn {
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.episodeBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.episodeActive {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* Movie info */
+.movieInfo {
+  padding: 20px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.movieTitle {
+  font-size: 22px;
   font-weight: 700;
-  margin-bottom: var(--spacing-md);
-  color: white;
+  color: var(--color-text-primary);
+  margin: 0 0 8px;
 }
 
 .meta {
   display: flex;
-  gap: var(--spacing-md);
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: var(--spacing-lg);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
 }
 
-.episodeSelector {
-  margin-top: var(--spacing-lg);
-}
-
-.sectionTitle {
-  font-size: var(--font-size-lg);
+.qualityTag {
+  background: rgba(102, 126, 234, 0.15);
+  color: var(--color-accent);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
   font-weight: 600;
-  margin-bottom: var(--spacing-md);
-  color: white;
 }
 
-.episodes {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: var(--spacing-sm);
+.langTag {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.episodeBtn {
-  padding: var(--spacing-sm);
-  background: var(--glass-bg-medium);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-  color: white;
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  transition: all var(--transition-fast);
+/* Related */
+.relatedSection {
+  padding: 20px 0 40px;
 }
 
-.episodeBtn:hover {
-  background: var(--glass-bg-heavy);
-  transform: translateY(-2px);
-}
-
-.episodeBtn.active {
-  background: var(--gradient-primary);
-  border-color: transparent;
-}
-
-.actions {
-  display: flex;
-  gap: var(--spacing-md);
-  flex-wrap: wrap;
-}
-
-.noVideo {
-  padding: var(--spacing-xl);
-  text-align: center;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-@media (max-width: 640px) {
-  .episodes {
-    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+/* Responsive */
+@media (max-width: 768px) {
+  .topBar {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .title {
-    font-size: var(--font-size-xl);
+  .episodeGrid {
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
   }
 }

@@ -32,6 +32,7 @@ export const ROUTES = {
   MOVIE_DETAIL: '/movie/:slug',
   WATCH: '/watch/:slug',
   WATCH_PARTY: '/watch/:slug/party/:roomId',
+  WATCH_PARTY_LIST: '/watch-party',
   PROFILE: '/profile',
   WATCHLIST: '/profile/watchlist',
   HISTORY: '/profile/history',

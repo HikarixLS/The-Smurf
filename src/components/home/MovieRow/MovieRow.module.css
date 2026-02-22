@@ -1,0 +1,186 @@
+.movieRow {
+    margin-bottom: 40px;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding: 0 4%;
+}
+
+.title {
+    font-size: clamp(20px, 2.5vw, 28px);
+    font-weight: 700;
+    color: var(--color-text-primary, #fff);
+    margin: 0;
+    position: relative;
+    padding-left: 16px;
+}
+
+.title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 70%;
+    background: var(--gradient-primary, linear-gradient(135deg, #667eea, #764ba2));
+    border-radius: 2px;
+}
+
+.viewAll {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: var(--color-accent, #667eea);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+}
+
+.viewAll:hover {
+    background: rgba(102, 126, 234, 0.1);
+    color: #8da0f0;
+}
+
+/* Slider */
+.sliderWrapper {
+    position: relative;
+}
+
+.slider {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 8px 4% 16px;
+}
+
+.slider::-webkit-scrollbar {
+    display: none;
+}
+
+.cardWrapper {
+    flex-shrink: 0;
+    width: calc(100% / 6 - 10px);
+    scroll-snap-align: start;
+}
+
+/* Scroll buttons */
+.scrollBtn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+    width: 44px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    font-size: 28px;
+    color: white;
+    transition: all 0.3s ease;
+    opacity: 0;
+}
+
+.sliderWrapper:hover .scrollBtn {
+    opacity: 1;
+}
+
+.scrollLeft {
+    left: 0;
+    background: linear-gradient(to right, rgba(10, 10, 10, 0.9), transparent);
+    padding-right: 16px;
+}
+
+.scrollRight {
+    right: 0;
+    background: linear-gradient(to left, rgba(10, 10, 10, 0.9), transparent);
+    padding-left: 16px;
+}
+
+.scrollBtn:hover {
+    color: var(--color-accent, #667eea);
+}
+
+/* Skeleton */
+.skeleton {
+    flex-shrink: 0;
+    width: calc(100% / 6 - 10px);
+    aspect-ratio: 2/3;
+    background: linear-gradient(110deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 12px;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .cardWrapper {
+        width: calc(100% / 5 - 10px);
+    }
+
+    .skeleton {
+        width: calc(100% / 5 - 10px);
+    }
+}
+
+@media (max-width: 1024px) {
+    .cardWrapper {
+        width: calc(100% / 4 - 10px);
+    }
+
+    .skeleton {
+        width: calc(100% / 4 - 10px);
+    }
+}
+
+@media (max-width: 768px) {
+    .cardWrapper {
+        width: calc(100% / 3 - 10px);
+    }
+
+    .skeleton {
+        width: calc(100% / 3 - 10px);
+    }
+
+    .header {
+        padding: 0 16px;
+    }
+
+    .slider {
+        padding: 8px 16px 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .cardWrapper {
+        width: calc(100% / 2.3);
+    }
+
+    .skeleton {
+        width: calc(100% / 2.3);
+    }
+}
