@@ -1,1 +1,0 @@
-const r=(t,e="https://img.ophim.live/uploads/movies/")=>t?t.startsWith("http")?t:e+t:"https://via.placeholder.com/300x450?text=No+Image",n=t=>{if(!t)return"";const e=document.createElement("DIV");return e.innerHTML=t,e.textContent||e.innerText||""};export{r as g,n as s};
