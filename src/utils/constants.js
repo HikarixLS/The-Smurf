@@ -13,7 +13,7 @@ export const AUTOCOMPLETE_LIMIT = 5;
 
 // Image Configuration
 export const IMAGE_BASE_URL = 'https://img.ophim.live/uploads/movies/';
-export const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/300x450?text=No+Image';
+export const PLACEHOLDER_IMAGE = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450' viewBox='0 0 300 450'%3E%3Crect width='300' height='450' fill='%23181828'/%3E%3Ctext x='150' y='225' text-anchor='middle' fill='%23555' font-size='14' font-family='sans-serif'%3ENo Image%3C/text%3E%3C/svg%3E`;
 
 // LocalStorage Keys
 export const STORAGE_KEYS = {

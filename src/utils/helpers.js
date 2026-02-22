@@ -50,18 +50,14 @@ export const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 };
 
-// Get image URL — use WebP format for ophim CDN
+// Fallback placeholder (inline SVG — no external request)
+const PLACEHOLDER_IMG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450' viewBox='0 0 300 450'%3E%3Crect width='300' height='450' fill='%23181828'/%3E%3Ctext x='150' y='225' text-anchor='middle' fill='%23555' font-size='14' font-family='sans-serif'%3ENo Image%3C/text%3E%3C/svg%3E`;
+
+// Get image URL
 export const getImageUrl = (path, baseUrl = 'https://img.ophim.live/uploads/movies/') => {
-  if (!path) return 'https://via.placeholder.com/300x450?text=No+Image';
-  if (path.startsWith('http')) {
-    // Convert ophim URLs to webp
-    if (path.includes('img.ophim.live') && !path.endsWith('.webp')) {
-      return path.replace(/\.(jpg|jpeg|png)$/i, '.webp');
-    }
-    return path;
-  }
-  const url = baseUrl + path;
-  return url.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+  if (!path) return PLACEHOLDER_IMG;
+  if (path.startsWith('http')) return path;
+  return baseUrl + path;
 };
 
 // Get movie slug from URL

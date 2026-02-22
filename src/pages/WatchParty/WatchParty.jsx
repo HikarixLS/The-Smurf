@@ -212,7 +212,7 @@ const WatchParty = () => {
                                                         src={getImageUrl(movie.thumb_url || movie.poster_url)}
                                                         alt={movie.name}
                                                         className={styles.searchThumb}
-                                                        onError={e => { e.target.src = 'https://via.placeholder.com/60x90/1a1a1a/666?text=?'; }}
+                                                        onError={e => { e.target.style.display = 'none'; }}
                                                     />
                                                     <div className={styles.searchItemInfo}>
                                                         <span className={styles.searchItemName}>{movie.name}</span>
@@ -239,7 +239,7 @@ const WatchParty = () => {
                                         src={getImageUrl(selectedMovie.thumb_url || selectedMovie.poster_url)}
                                         alt={selectedMovie.name}
                                         className={styles.selectedThumb}
-                                        onError={e => { e.target.src = 'https://via.placeholder.com/80x120/1a1a1a/666?text=?'; }}
+                                        onError={e => { e.target.style.display = 'none'; }}
                                     />
                                     <div className={styles.selectedInfo}>
                                         <h4>{selectedMovie.name}</h4>
@@ -304,7 +304,7 @@ const WatchParty = () => {
                                         <img
                                             src={room.movieThumb}
                                             alt={room.movieName}
-                                            onError={(e) => { e.target.src = 'https://via.placeholder.com/400x225/1a1a1a/666?text=No+Image'; }}
+                                            onError={(e) => { e.target.style.display = 'none'; }}
                                         />
                                         <div className={styles.roomOverlay}>
                                             <button className={styles.joinBtn}>

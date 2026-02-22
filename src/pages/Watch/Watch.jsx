@@ -7,11 +7,14 @@ import VideoPlayer from '@/components/common/VideoPlayer/VideoPlayer';
 import MovieRow from '@/components/home/MovieRow/MovieRow';
 import Loader from '@/components/common/Loader/Loader';
 import { movieService } from '@/services/api/movieService';
+import { useAuth } from '@/services/firebase/AuthContext';
+import { addToHistory } from '@/services/firebase/watchlistService';
 import styles from './Watch.module.css';
 
 const Watch = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentEpisode, setCurrentEpisode] = useState(0);
@@ -22,6 +25,13 @@ const Watch = () => {
   useEffect(() => {
     fetchMovieDetail();
   }, [slug]);
+
+  // Track watch history
+  useEffect(() => {
+    if (user && movie) {
+      addToHistory(user.uid, movie).catch(() => { });
+    }
+  }, [user, movie]);
 
   const fetchMovieDetail = async () => {
     setLoading(true);

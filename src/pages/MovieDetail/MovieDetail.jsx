@@ -7,6 +7,11 @@ import MovieRow from '@/components/home/MovieRow/MovieRow';
 import Loader from '@/components/common/Loader/Loader';
 import { movieService } from '@/services/api/movieService';
 import { getImageUrl, stripHtml } from '@/utils/helpers';
+import { useAuth } from '@/services/firebase/AuthContext';
+import {
+  addToFavorites, removeFromFavorites, isInFavorites,
+  addToWatchlist, removeFromWatchlist, isInWatchlist,
+} from '@/services/firebase/watchlistService';
 import styles from './MovieDetail.module.css';
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p';
@@ -14,6 +19,7 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p';
 const MovieDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,6 +36,40 @@ const MovieDetail = () => {
   useEffect(() => {
     fetchMovieDetail();
   }, [slug]);
+
+  // Check saved favorites/watchlist status
+  useEffect(() => {
+    if (!user || !slug) return;
+    const checkSaved = async () => {
+      const [fav, wl] = await Promise.all([
+        isInFavorites(user.uid, slug),
+        isInWatchlist(user.uid, slug),
+      ]);
+      setLiked(fav);
+      setBookmarked(wl);
+    };
+    checkSaved();
+  }, [user, slug]);
+
+  const handleToggleLike = async () => {
+    if (!user || !movie) return;
+    if (liked) {
+      await removeFromFavorites(user.uid, slug);
+    } else {
+      await addToFavorites(user.uid, movie);
+    }
+    setLiked(!liked);
+  };
+
+  const handleToggleBookmark = async () => {
+    if (!user || !movie) return;
+    if (bookmarked) {
+      await removeFromWatchlist(user.uid, slug);
+    } else {
+      await addToWatchlist(user.uid, movie);
+    }
+    setBookmarked(!bookmarked);
+  };
 
   const fetchMovieDetail = async () => {
     setLoading(true);
@@ -190,14 +230,14 @@ const MovieDetail = () => {
                 </button>
                 <button
                   className={`${styles.actionBtn} ${liked ? styles.active : ''}`}
-                  onClick={() => setLiked(!liked)}
+                  onClick={handleToggleLike}
                 >
                   <FiHeart />
                   <span>Yêu thích</span>
                 </button>
                 <button
                   className={`${styles.actionBtn} ${bookmarked ? styles.active : ''}`}
-                  onClick={() => setBookmarked(!bookmarked)}
+                  onClick={handleToggleBookmark}
                 >
                   <FiBookmark />
                   <span>Lưu lại</span>
