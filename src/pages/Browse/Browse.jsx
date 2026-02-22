@@ -45,7 +45,7 @@ const Browse = () => {
   // Collapsible filter sections
   const [expandedSections, setExpandedSections] = useState({
     type: true,
-    genre: false,
+    genre: true,
     country: false,
     year: false,
   });
