@@ -20,6 +20,8 @@ const GENRES = [
   { name: 'Âm Nhạc', slug: 'am-nhac' },
   { name: 'Thể Thao', slug: 'the-thao' },
   { name: 'Tâm Lý', slug: 'tam-ly' },
+  { name: 'Bách Hợp', slug: 'bach-hop' },
+  { name: 'Đam Mỹ', slug: 'dam-my' },
 ];
 
 const COUNTRIES = [
