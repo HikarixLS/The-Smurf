@@ -10,6 +10,7 @@ import { logPageView } from '@/services/firebase/config';
 
 // Components
 import Loader from '@/components/common/Loader/Loader';
+import CursorGlow from '@/components/common/CursorGlow/CursorGlow';
 
 // Lazy loaded pages
 const Home = lazy(() => import('@/pages/Home/Home'));
@@ -55,6 +56,7 @@ const ProtectedRoute = ({ children }) => {
 const AppRouter = () => {
   return (
     <BrowserRouter basename="/The-Smurf">
+      <CursorGlow />
       <AuthProvider>
         <AnalyticsTracker />
         <Suspense fallback={<PageLoader />}>
