@@ -304,4 +304,51 @@
   .mobileMenu {
     display: flex;
   }
+
+  .header {
+    padding: 10px 0;
+  }
+
+  .headerContent {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .headerContent {
+    padding: 0 12px;
+  }
+
+  .logoText {
+    font-size: 16px;
+  }
+
+  .logoIcon {
+    font-size: 20px;
+  }
+
+  .userBtn {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+
+  .mobileMenuBtn {
+    width: 34px;
+    height: 34px;
+    font-size: 20px;
+  }
+
+  .mobileLink {
+    font-size: 14px;
+    padding: 10px 14px;
+  }
+
+  .mobileSearch {
+    padding: 10px 14px;
+  }
+
+  .mobileSearch input {
+    font-size: 14px;
+  }
 }

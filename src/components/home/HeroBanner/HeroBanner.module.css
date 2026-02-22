@@ -222,8 +222,13 @@
   opacity: 1;
 }
 
-.navPrev { left: 20px; }
-.navNext { right: 20px; }
+.navPrev {
+  left: 20px;
+}
+
+.navNext {
+  right: 20px;
+}
 
 .navPrev:hover,
 .navNext:hover {
@@ -265,6 +270,7 @@
     opacity: 0;
     transform: scale(1.05);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -276,6 +282,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -283,19 +290,152 @@
 }
 
 @keyframes slideUp {
-  from { transform: translateY(30px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Responsive */
 @media (max-width: 1024px) {
-  .thumbnails { display: none; }
-  .content { padding: 0 3% 60px; }
+  .thumbnails {
+    display: none;
+  }
+
+  .content {
+    padding: 0 3% 60px;
+  }
 }
 
-@media (max-width: 640px) {
-  .heroBanner { height: 70vh; min-height: 400px; }
-  .content { padding: 0 16px 40px; }
-  .actions { flex-direction: column; }
-  .playBtn, .infoBtn { width: 100%; justify-content: center; }
+@media (max-width: 768px) {
+  .heroBanner {
+    height: 75vh;
+    min-height: 420px;
+    max-height: 600px;
+  }
+
+  .content {
+    padding: 0 16px 50px;
+  }
+
+  .info {
+    max-width: 100%;
+  }
+
+  .title {
+    font-size: clamp(22px, 6vw, 32px);
+    margin-bottom: 4px;
+  }
+
+  .originName {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  .meta {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .rating {
+    font-size: 12px;
+    padding: 3px 10px;
+  }
+
+  .badge {
+    font-size: 11px;
+    padding: 3px 10px;
+  }
+
+  .categories {
+    margin-bottom: 14px;
+    gap: 6px;
+  }
+
+  .categoryTag {
+    font-size: 11px;
+    padding: 3px 10px;
+  }
+
+  .actions {
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .playBtn {
+    padding: 12px 24px;
+    font-size: 14px;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .infoBtn {
+    padding: 12px 20px;
+    font-size: 14px;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .gradientOverlay {
+    background:
+      linear-gradient(to right, rgba(10, 10, 10, 0.85) 0%, rgba(10, 10, 10, 0.4) 60%, transparent 100%),
+      linear-gradient(to top, rgba(10, 10, 10, 1) 0%, rgba(10, 10, 10, 0.4) 40%, transparent 70%),
+      linear-gradient(to bottom, rgba(10, 10, 10, 0.6) 0%, transparent 20%);
+  }
+
+  .navPrev,
+  .navNext {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    opacity: 0.7;
+  }
+
+  .navPrev {
+    left: 8px;
+  }
+
+  .navNext {
+    right: 8px;
+  }
+
+  .dots {
+    bottom: 12px;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .dotActive {
+    width: 18px;
+  }
+}
+
+@media (max-width: 400px) {
+  .heroBanner {
+    height: 65vh;
+    min-height: 350px;
+  }
+
+  .content {
+    padding: 0 12px 36px;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+
+  .playBtn,
+  .infoBtn {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
 }

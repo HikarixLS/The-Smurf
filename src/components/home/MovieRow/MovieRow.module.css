@@ -183,4 +183,31 @@
     .skeleton {
         width: calc(100% / 2.3);
     }
+
+    .movieRow {
+        margin-bottom: 28px;
+    }
+
+    .header {
+        margin-bottom: 10px;
+    }
+
+    .title {
+        font-size: 16px;
+        padding-left: 12px;
+    }
+
+    .title::before {
+        width: 3px;
+    }
+
+    .viewAll {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+
+    .slider {
+        gap: 8px;
+        padding: 4px 12px 12px;
+    }
 }

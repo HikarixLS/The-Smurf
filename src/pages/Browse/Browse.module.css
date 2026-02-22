@@ -134,10 +134,65 @@
 /* Responsive */
 @media (max-width: 768px) {
   .container {
-    padding: 16px 16px 40px;
+    padding: 16px 12px 40px;
+  }
+
+  .title {
+    font-size: 22px;
   }
 
   .filtersPanel {
-    padding: 16px;
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .filterGroup {
+    margin-bottom: 12px;
+  }
+
+  .filterLabel {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  .filterOptions {
+    gap: 4px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .filterOptions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filterChip {
+    font-size: 12px;
+    padding: 5px 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .clearBtn {
+    font-size: 12px;
+    padding: 6px 12px;
+    margin-top: 10px;
+  }
+
+  .filterToggle {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .header {
+    margin-bottom: 16px;
+  }
+}
+
+@media (max-width: 400px) {
+  .container {
+    padding: 12px 8px 32px;
   }
 }

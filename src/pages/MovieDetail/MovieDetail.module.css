@@ -410,31 +410,147 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .hero {
+    min-height: 55vh;
+  }
+
   .heroContent {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    padding-bottom: 24px;
+    padding: 0 16px 24px;
+    gap: 16px;
   }
 
   .posterWrapper {
-    width: 160px;
+    width: 140px;
+  }
+
+  .title {
+    font-size: clamp(20px, 5vw, 28px);
+  }
+
+  .originName {
+    font-size: 14px;
+    margin-bottom: 10px;
   }
 
   .metaRow {
     justify-content: center;
+    gap: 6px;
+  }
+
+  .ratingBadge,
+  .metaBadge,
+  .qualityBadge,
+  .langBadge {
+    font-size: 11px;
+    padding: 4px 10px;
   }
 
   .genres {
     justify-content: center;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .genreTag {
+    font-size: 11px;
+    padding: 4px 12px;
   }
 
   .actions {
     justify-content: center;
+    gap: 8px;
+  }
+
+  .watchBtn {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+
+  .actionBtn {
+    padding: 8px 12px;
+    font-size: 16px;
+  }
+
+  .actionBtn span {
+    font-size: 10px;
+  }
+
+  .tabSection {
+    padding: 0 16px 40px;
   }
 
   .tabs {
     overflow-x: auto;
     scrollbar-width: none;
+    -ms-overflow-style: none;
+    gap: 0;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    padding: 12px 16px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .overview h3 {
+    font-size: 16px;
+  }
+
+  .description {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .detailGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .detailItem {
+    padding: 12px;
+  }
+
+  .detailLabel {
+    font-size: 11px;
+  }
+
+  .castGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .episodeGrid {
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 6px;
+  }
+
+  .episodeBtn {
+    padding: 8px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 400px) {
+  .posterWrapper {
+    width: 120px;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .watchBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .detailGrid {
+    grid-template-columns: 1fr;
   }
 }
