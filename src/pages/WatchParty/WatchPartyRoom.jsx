@@ -50,6 +50,7 @@ const WatchPartyRoom = () => {
     const heartbeatRef = useRef(null);
     const prevMembersRef = useRef(null);
     const roomRef = useRef(null);   // always current room (avoids stale closures)
+    const movieLoadedRef = useRef(false); // guard against repeated getMovieDetail calls
 
     const session = watchPartyService.getSession();
     // Derive isHost from live room state
@@ -83,11 +84,14 @@ const WatchPartyRoom = () => {
             }
             setLoading(false);
 
-            // Fetch movie detail once
-            if (!movie && roomData.movieSlug) {
+            // Fetch movie detail ONCE — use ref, NOT state, to guard
+            // (the closure captures movie=null forever; using !movie here causes 190 API calls/min)
+            if (!movieLoadedRef.current && roomData.movieSlug) {
+                movieLoadedRef.current = true; // set BEFORE async to prevent race
                 movieService.getMovieDetail(roomData.movieSlug).then(res => {
                     if (res?.data?.item) setMovie(res.data.item);
-                }).catch(() => { });
+                    else movieLoadedRef.current = false; // allow retry on API failure
+                }).catch(() => { movieLoadedRef.current = false; });
             }
 
             // ── Viewer: sync to host playback ──
