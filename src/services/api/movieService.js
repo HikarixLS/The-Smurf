@@ -172,7 +172,7 @@ export const movieService = {
       const params = new URLSearchParams({ page: page.toString() });
       if (sortField) params.append('sort_field', sortField);
       if (limit) params.append('limit', limit.toString());
-      if (type) params.append('type_list', type);
+      if (type) params.append('type', type);
       const response = await apiClient.get(`${ENDPOINTS.CATEGORY}/${categorySlug}?${params.toString()}`);
       return response;
     } catch (error) {
@@ -189,7 +189,7 @@ export const movieService = {
       const params = new URLSearchParams({ page: page.toString() });
       if (sortField) params.append('sort_field', sortField);
       if (limit) params.append('limit', limit.toString());
-      if (type) params.append('type_list', type);
+      if (type) params.append('type', type);
       const response = await apiClient.get(`${ENDPOINTS.COUNTRY}/${countrySlug}?${params.toString()}`);
       return response;
     } catch (error) {
@@ -206,7 +206,7 @@ export const movieService = {
       const params = new URLSearchParams({ page: page.toString() });
       if (sortField) params.append('sort_field', sortField);
       if (limit) params.append('limit', limit.toString());
-      if (type) params.append('type_list', type);
+      if (type) params.append('type', type);
       const response = await apiClient.get(`${ENDPOINTS.YEAR}/${year}?${params.toString()}`);
       return response;
     } catch (error) {
