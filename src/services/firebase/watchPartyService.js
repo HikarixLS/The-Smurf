@@ -1,5 +1,6 @@
 import {
     ref, push, set, get, update, remove, onValue, off,
+    onDisconnect,
     serverTimestamp, query, orderByChild, limitToLast
 } from 'firebase/database';
 import { database, isFirebaseConfigured, getCurrentUser } from './config';
@@ -7,7 +8,7 @@ import { database, isFirebaseConfigured, getCurrentUser } from './config';
 const ROOMS_REF = 'watchPartyRooms';
 const MESSAGES_REF = 'watchPartyMessages';
 
-// Generate a display name
+// Generate a random display name
 const generateName = () => {
     const adjectives = ['Vui', 'Hào', 'Dũng', 'Xinh', 'Cool', 'Hot', 'Cute'];
     const nouns = ['Smurf', 'Gấu', 'Mèo', 'Cáo', 'Thỏ', 'Rồng', 'Hổ'];
@@ -16,12 +17,10 @@ const generateName = () => {
     return `${adj}${noun}${Math.floor(Math.random() * 100)}`;
 };
 
-// Get or create user session
+// Get or create persistent user session (stored in localStorage)
 const getSession = () => {
     let session = localStorage.getItem('smurf_wp_session');
-    if (session) {
-        return JSON.parse(session);
-    }
+    if (session) return JSON.parse(session);
     const newSession = {
         id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         name: generateName(),
@@ -31,7 +30,6 @@ const getSession = () => {
     return newSession;
 };
 
-// Update session name
 const updateName = (newName) => {
     const session = getSession();
     session.name = newName;
@@ -39,13 +37,10 @@ const updateName = (newName) => {
 };
 
 export const watchPartyService = {
-    // Check if service is available
     isAvailable: () => isFirebaseConfigured() && database !== null,
 
-    // Get user session
     getSession,
 
-    // Update display name
     updateName: (name) => {
         const session = getSession();
         session.name = name;
@@ -53,7 +48,7 @@ export const watchPartyService = {
         return session;
     },
 
-    // Create a new watch party room
+    // Create a new Watch Party room
     createRoom: async ({ movieSlug, movieName, movieThumb }) => {
         if (!database) throw new Error('Firebase chưa được cấu hình');
         const session = getSession();
@@ -66,7 +61,7 @@ export const watchPartyService = {
             movieThumb: movieThumb || '',
             hostId: session.id,
             hostName: session.name,
-            status: 'waiting', // waiting, playing, paused, ended
+            status: 'waiting',
             createdAt: Date.now(),
             playback: {
                 currentTime: 0,
@@ -77,15 +72,22 @@ export const watchPartyService = {
             },
             members: {
                 [session.id]: {
+                    id: session.id,
                     name: session.name,
                     joinedAt: Date.now(),
                     isHost: true,
-                }
+                    isBuffering: false,
+                },
             },
             viewerCount: 1,
         };
 
         await set(roomRef, roomData);
+
+        // Register onDisconnect for host's own member entry
+        const hostMemberRef = ref(database, `${ROOMS_REF}/${roomRef.key}/members/${session.id}`);
+        onDisconnect(hostMemberRef).remove();
+
         return roomData;
     },
 
@@ -93,51 +95,80 @@ export const watchPartyService = {
     joinRoom: async (roomId) => {
         if (!database) throw new Error('Firebase chưa được cấu hình');
         const session = getSession();
-
         const memberRef = ref(database, `${ROOMS_REF}/${roomId}/members/${session.id}`);
+
+        // Register: auto-remove this member if the connection drops
+        onDisconnect(memberRef).remove();
+
         await set(memberRef, {
+            id: session.id,
             name: session.name,
             joinedAt: Date.now(),
             isHost: false,
+            isBuffering: false,
         });
 
-        // Increment viewer count
+        // Recalculate viewerCount from actual members
         const roomRef = ref(database, `${ROOMS_REF}/${roomId}`);
         const snapshot = await get(roomRef);
         if (snapshot.exists()) {
             const data = snapshot.val();
             const memberCount = data.members ? Object.keys(data.members).length : 1;
-            await update(roomRef, { viewerCount: memberCount + 1 });
+            await update(roomRef, { viewerCount: memberCount });
         }
 
         return session;
     },
 
-    // Leave a room
+    // Leave a room — with Host Migration
     leaveRoom: async (roomId) => {
         if (!database) return;
         const session = getSession();
-
         const memberRef = ref(database, `${ROOMS_REF}/${roomId}/members/${session.id}`);
+
+        // Cancel the onDisconnect we registered (so it doesn't fire again later)
+        await onDisconnect(memberRef).cancel();
         await remove(memberRef);
 
-        // Decrement viewer count
         const roomRef = ref(database, `${ROOMS_REF}/${roomId}`);
         const snapshot = await get(roomRef);
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            const memberCount = data.members ? Object.keys(data.members).length : 0;
-            await update(roomRef, { viewerCount: Math.max(0, memberCount) });
+        if (!snapshot.exists()) return;
 
-            // If no members left, remove room
-            if (memberCount === 0) {
-                await remove(roomRef);
-                await remove(ref(database, `${MESSAGES_REF}/${roomId}`));
+        const data = snapshot.val();
+        const members = data.members ? Object.entries(data.members) : [];
+        const memberCount = members.length;
+
+        if (memberCount === 0) {
+            // Last person left → delete room + messages
+            await remove(roomRef);
+            await remove(ref(database, `${MESSAGES_REF}/${roomId}`));
+            return;
+        }
+
+        // Host migration: if the leaving user was host, promote oldest member
+        if (data.hostId === session.id) {
+            const sorted = members
+                .map(([, m]) => m)
+                .filter(m => m.id && m.id !== session.id)
+                .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+
+            if (sorted.length > 0) {
+                const newHost = sorted[0];
+                await update(roomRef, {
+                    hostId: newHost.id,
+                    hostName: newHost.name,
+                });
+                await update(
+                    ref(database, `${ROOMS_REF}/${roomId}/members/${newHost.id}`),
+                    { isHost: true }
+                );
             }
         }
+
+        await update(roomRef, { viewerCount: Math.max(0, memberCount) });
     },
 
-    // Get all rooms
+    // Get all rooms (snapshot)
     getRooms: async () => {
         if (!database) return [];
         const roomsRef = ref(database, ROOMS_REF);
@@ -145,29 +176,25 @@ export const watchPartyService = {
         if (!snapshot.exists()) return [];
 
         const rooms = [];
-        snapshot.forEach((child) => {
-            rooms.push({ ...child.val(), id: child.key });
-        });
+        snapshot.forEach((child) => rooms.push({ ...child.val(), id: child.key }));
         return rooms.sort((a, b) => b.createdAt - a.createdAt);
     },
 
-    // Listen to rooms list
+    // Subscribe to rooms list
     onRoomsUpdate: (callback) => {
         if (!database) return () => { };
         const roomsRef = ref(database, ROOMS_REF);
         onValue(roomsRef, (snapshot) => {
             const rooms = [];
             if (snapshot.exists()) {
-                snapshot.forEach((child) => {
-                    rooms.push({ ...child.val(), id: child.key });
-                });
+                snapshot.forEach((child) => rooms.push({ ...child.val(), id: child.key }));
             }
             callback(rooms.sort((a, b) => b.createdAt - a.createdAt));
         });
         return () => off(roomsRef);
     },
 
-    // Listen to a specific room
+    // Subscribe to a specific room
     onRoomUpdate: (roomId, callback) => {
         if (!database) return () => { };
         const roomRef = ref(database, `${ROOMS_REF}/${roomId}`);
@@ -177,11 +204,10 @@ export const watchPartyService = {
         return () => off(roomRef);
     },
 
-    // Update playback state (host only)
+    // Update playback state (Host only — guards in WatchPartyRoom.jsx)
     syncPlayback: async (roomId, playbackData) => {
         if (!database) return;
-        const playbackRef = ref(database, `${ROOMS_REF}/${roomId}/playback`);
-        await update(playbackRef, {
+        await update(ref(database, `${ROOMS_REF}/${roomId}/playback`), {
             ...playbackData,
             updatedAt: Date.now(),
         });
@@ -191,6 +217,14 @@ export const watchPartyService = {
     updateRoomStatus: async (roomId, status) => {
         if (!database) return;
         await update(ref(database, `${ROOMS_REF}/${roomId}`), { status });
+    },
+
+    // Report local buffering state — viewers call this on waiting/canplay events
+    reportBuffering: async (roomId, isBuffering) => {
+        if (!database) return;
+        const session = getSession();
+        const memberRef = ref(database, `${ROOMS_REF}/${roomId}/members/${session.id}`);
+        await update(memberRef, { isBuffering });
     },
 
     // Send a chat message
@@ -206,7 +240,7 @@ export const watchPartyService = {
         });
     },
 
-    // Listen to chat messages
+    // Subscribe to chat messages (last 100)
     onMessages: (roomId, callback) => {
         if (!database) return () => { };
         const msgsRef = query(
@@ -217,16 +251,14 @@ export const watchPartyService = {
         onValue(msgsRef, (snapshot) => {
             const messages = [];
             if (snapshot.exists()) {
-                snapshot.forEach((child) => {
-                    messages.push({ ...child.val(), id: child.key });
-                });
+                snapshot.forEach((child) => messages.push({ ...child.val(), id: child.key }));
             }
             callback(messages);
         });
         return () => off(msgsRef);
     },
 
-    // Delete a room (host only)
+    // Delete a room (Host only)
     deleteRoom: async (roomId) => {
         if (!database) return;
         await remove(ref(database, `${ROOMS_REF}/${roomId}`));

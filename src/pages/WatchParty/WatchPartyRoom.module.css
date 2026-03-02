@@ -379,6 +379,12 @@
     border: 1px solid rgba(102, 126, 234, 0.3);
 }
 
+/* Member is buffering — pulsing orange ring */
+.bufferingTag {
+    border: 2px solid rgba(251, 191, 36, 0.7);
+    animation: pulse 1.2s infinite;
+}
+
 /* Messages */
 .chatMessages {
     flex: 1;
