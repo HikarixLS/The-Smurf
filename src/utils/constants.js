@@ -2,6 +2,11 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://ophim1.com';
 export const API_TIMEOUT = import.meta.env.VITE_API_TIMEOUT || 10000;
 
+// TMDB Configuration
+export const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || 'd3544e65b11d417eaa725d9602ea56d9';
+export const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+export const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
+
 // App Configuration
 export const APP_NAME = 'The Smurf';
 export const APP_DESCRIPTION = 'Watch movies and TV shows online';

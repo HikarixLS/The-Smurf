@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiStar, FiPlay } from 'react-icons/fi';
+import { FiPlay } from 'react-icons/fi';
 import PropTypes from 'prop-types';
-import { getImageUrl } from '@/utils/helpers';
+import { getImageUrl, PLACEHOLDER_IMG } from '@/utils/helpers';
 import styles from './MovieCard.module.css';
 
 const MovieCard = ({ movie }) => {
@@ -13,7 +13,7 @@ const MovieCard = ({ movie }) => {
   };
 
   const posterUrl = getImageUrl(movie.poster_url || movie.thumb_url);
-  const rating = movie.tmdb?.vote_average || movie.imdb?.rating || 0;
+  const rating = movie.imdb?.rating || 0;
   const displayTitle = movie.origin_name || movie.name;
   const subTitle = movie.origin_name && movie.name !== movie.origin_name ? movie.name : '';
 
@@ -27,6 +27,10 @@ const MovieCard = ({ movie }) => {
           loading="lazy"
           width={300}
           height={450}
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = PLACEHOLDER_IMG;
+          }}
         />
 
         <div className={styles.badges}>
@@ -66,8 +70,7 @@ const MovieCard = ({ movie }) => {
           {movie.year && <span className={styles.year}>{movie.year}</span>}
           {rating > 0 && (
             <div className={styles.rating}>
-              <FiStar size={12} />
-              {rating.toFixed(1)}
+              ⭐ {rating.toFixed(1)}
             </div>
           )}
         </div>
@@ -99,7 +102,6 @@ MovieCard.propTypes = {
     category: PropTypes.arrayOf(
       PropTypes.shape({ name: PropTypes.string })
     ),
-    tmdb: PropTypes.shape({ vote_average: PropTypes.number }),
     imdb: PropTypes.shape({ rating: PropTypes.number }),
   }).isRequired,
 };

@@ -20,9 +20,21 @@
   margin-bottom: var(--spacing-xl);
 }
 
+/* Glass styling directly — no GlassCard pseudo-element z-index issues */
+.userCard,
+.statCard,
+.section {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
 .userCard {
   text-align: center;
-  padding: var(--spacing-xl);
 }
 
 .avatar {
@@ -46,11 +58,6 @@
 .email {
   color: var(--color-text-secondary);
   margin-bottom: var(--spacing-xs);
-}
-
-.joined {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
 }
 
 .avatarImg {
@@ -91,7 +98,6 @@
 
 .statCard {
   text-align: center;
-  padding: var(--spacing-lg);
 }
 
 .statIcon {
@@ -128,9 +134,12 @@
 }
 
 .movieList {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .movieItem {

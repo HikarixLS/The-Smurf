@@ -4,6 +4,7 @@ import Footer from '@/components/layout/Footer/Footer';
 import HeroBanner from '@/components/home/HeroBanner/HeroBanner';
 import MovieRow from '@/components/home/MovieRow/MovieRow';
 import { movieService } from '@/services/api/movieService';
+import useSEO from '@/hooks/useSEO';
 import styles from './Home.module.css';
 
 const Home = () => {
@@ -11,8 +12,11 @@ const Home = () => {
   const [newMovies, setNewMovies] = useState([]);
   const [seriesMovies, setSeriesMovies] = useState([]);
   const [singleMovies, setSingleMovies] = useState([]);
-  const [theaterMovies, setTheaterMovies] = useState([]);
+  const [animatedMovies, setAnimatedMovies] = useState([]);
+  const [tvShowMovies, setTvShowMovies] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  useSEO('Trang chủ', 'Xem phim online miễn phí chất lượng cao. Phim mới, phim bộ, phim lẻ, hoạt hình cập nhật hàng ngày.');
 
   useEffect(() => {
     fetchAllData();
@@ -21,7 +25,6 @@ const Home = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      // Try the optimized single /home endpoint first
       let homeSuccess = false;
       try {
         const homeRes = await movieService.getHomeData();
@@ -32,14 +35,14 @@ const Home = () => {
           homeSuccess = true;
         }
       } catch {
-        // /home endpoint not available, fall back to individual calls
+        // /home endpoint not available
       }
 
-      // Fetch series, single, and theater movies
       const calls = [
         movieService.getSeries(1, 24),
         movieService.getSingleMovies(1, 24),
-        movieService.getMoviesByCategory('hanh-dong', 1, 'modified.time'), // Theater-like action movies
+        movieService.getMovies(1, { type: 'hoathinh', limit: 24 }),
+        movieService.getMovies(1, { type: 'tvshows', limit: 24 }),
       ];
       if (!homeSuccess) {
         calls.push(movieService.getNewReleases(1, 24));
@@ -50,23 +53,23 @@ const Home = () => {
       if (results[0].status === 'fulfilled' && results[0].value?.data?.items) {
         setSeriesMovies(results[0].value.data.items);
       }
-
       if (results[1].status === 'fulfilled' && results[1].value?.data?.items) {
         setSingleMovies(results[1].value.data.items);
       }
-
       if (results[2].status === 'fulfilled' && results[2].value?.data?.items) {
-        setTheaterMovies(results[2].value.data.items);
+        setAnimatedMovies(results[2].value.data.items);
+      }
+      if (results[3].status === 'fulfilled' && results[3].value?.data?.items) {
+        setTvShowMovies(results[3].value.data.items);
       }
 
-      // Fallback: if /home didn't work, use individual new releases call
-      if (!homeSuccess && results[3]?.status === 'fulfilled' && results[3].value?.data?.items) {
-        const items = results[3].value.data.items;
+      if (!homeSuccess && results[4]?.status === 'fulfilled' && results[4].value?.data?.items) {
+        const items = results[4].value.data.items;
         setFeaturedMovies(items.slice(0, 8));
         setNewMovies(items);
       }
     } catch (err) {
-      console.error('Error fetching home data:', err);
+      console.warn('Error fetching home data:', err);
     } finally {
       setLoading(false);
     }
@@ -87,13 +90,6 @@ const Home = () => {
           />
 
           <MovieRow
-            title="Phim Chiếu Rạp"
-            movies={theaterMovies}
-            loading={loading}
-            linkTo="/browse?type=hoathinh"
-          />
-
-          <MovieRow
             title="Phim Bộ Mới"
             movies={seriesMovies}
             loading={loading}
@@ -106,6 +102,20 @@ const Home = () => {
             loading={loading}
             linkTo="/browse?type=single"
           />
+
+          <MovieRow
+            title="Hoạt Hình"
+            movies={animatedMovies}
+            loading={loading}
+            linkTo="/browse?type=hoathinh"
+          />
+
+          <MovieRow
+            title="TV Shows"
+            movies={tvShowMovies}
+            loading={loading}
+            linkTo="/browse?type=tvshows"
+          />
         </div>
       </main>
       <Footer />
@@ -114,4 +124,3 @@ const Home = () => {
 };
 
 export default Home;
-

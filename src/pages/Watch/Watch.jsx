@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { FiArrowLeft, FiMonitor, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import Header from '@/components/layout/Header/Header';
 import Footer from '@/components/layout/Footer/Footer';
@@ -13,11 +13,15 @@ import styles from './Watch.module.css';
 
 const Watch = () => {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentEpisode, setCurrentEpisode] = useState(0);
+  const [currentEpisode, setCurrentEpisode] = useState(() => {
+    const ep = parseInt(searchParams.get('ep') || '0', 10);
+    return isNaN(ep) ? 0 : ep;
+  });
   const [currentServer, setCurrentServer] = useState(0);
   const [relatedMovies, setRelatedMovies] = useState([]);
   const [showEpisodes, setShowEpisodes] = useState(true);
@@ -29,7 +33,8 @@ const Watch = () => {
   // Track watch history
   useEffect(() => {
     if (user && movie) {
-      addToHistory(user.uid, movie).catch(() => { });
+      // Explicitly pass slug from URL params to guarantee Firebase key
+      addToHistory(user.uid, { ...movie, slug }).catch(() => { });
     }
   }, [user, movie]);
 

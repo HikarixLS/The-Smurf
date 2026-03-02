@@ -325,15 +325,13 @@ const WatchParty = () => {
                                                 <span className={styles.viewers}>
                                                     <FiUsers size={12} /> {room.members ? Object.keys(room.members).length : 0}
                                                 </span>
-                                                {room.hostId === session.id && (
-                                                    <button
-                                                        className={styles.deleteBtn}
-                                                        onClick={(e) => handleDelete(room.id, e)}
-                                                        title="Xóa phòng"
-                                                    >
-                                                        <FiTrash2 size={14} />
-                                                    </button>
-                                                )}
+                                                <button
+                                                    className={styles.deleteBtn}
+                                                    onClick={(e) => handleDelete(room.id, e)}
+                                                    title="Xóa phòng"
+                                                >
+                                                    <FiTrash2 size={14} />
+                                                </button>
                                             </div>
                                         </div>
                                     </div>

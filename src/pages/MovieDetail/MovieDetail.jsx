@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiPlay, FiHeart, FiBookmark, FiShare2, FiStar, FiClock, FiCalendar, FiImage, FiTag } from 'react-icons/fi';
+import { FiPlay, FiHeart, FiBookmark, FiShare2, FiStar, FiClock, FiCalendar } from 'react-icons/fi';
 import Header from '@/components/layout/Header/Header';
 import Footer from '@/components/layout/Footer/Footer';
 import MovieRow from '@/components/home/MovieRow/MovieRow';
@@ -14,8 +14,6 @@ import {
 } from '@/services/firebase/watchlistService';
 import styles from './MovieDetail.module.css';
 
-const TMDB_IMG = 'https://image.tmdb.org/t/p';
-
 const MovieDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -27,11 +25,7 @@ const MovieDetail = () => {
   const [relatedMovies, setRelatedMovies] = useState([]);
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
-  // New TMDB data
-  const [tmdbImages, setTmdbImages] = useState(null);
-  const [tmdbPeoples, setTmdbPeoples] = useState(null);
-  const [tmdbKeywords, setTmdbKeywords] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [peoples, setPeoples] = useState([]);
 
   useEffect(() => {
     fetchMovieDetail();
@@ -56,7 +50,8 @@ const MovieDetail = () => {
     if (liked) {
       await removeFromFavorites(user.uid, slug);
     } else {
-      await addToFavorites(user.uid, movie);
+      // Explicitly pass slug from URL params to guarantee Firebase key
+      await addToFavorites(user.uid, { ...movie, slug });
     }
     setLiked(!liked);
   };
@@ -66,7 +61,8 @@ const MovieDetail = () => {
     if (bookmarked) {
       await removeFromWatchlist(user.uid, slug);
     } else {
-      await addToWatchlist(user.uid, movie);
+      // Explicitly pass slug from URL params to guarantee Firebase key
+      await addToWatchlist(user.uid, { ...movie, slug });
     }
     setBookmarked(!bookmarked);
   };
@@ -77,30 +73,33 @@ const MovieDetail = () => {
     try {
       const response = await movieService.getMovieDetail(slug);
       if (response?.data?.item) {
-        setMovie(response.data.item);
+        const item = response.data.item;
+        setMovie(item);
 
-        // Fetch TMDB data + related movies in parallel
-        const [catRes, imgRes, peopleRes, kwRes] = await Promise.allSettled([
-          response.data.item.category?.length > 0
-            ? movieService.getMoviesByCategory(response.data.item.category[0].slug, 1)
-            : Promise.resolve(null),
-          movieService.getMovieImages(slug),
-          movieService.getMoviePeoples(slug),
-          movieService.getMovieKeywords(slug),
-        ]);
+        // Fetch related movies and peoples photos in parallel
+        const sideEffects = [];
 
-        if (catRes.status === 'fulfilled' && catRes.value?.data?.items) {
-          setRelatedMovies(catRes.value.data.items.filter(m => m.slug !== slug));
+        if (item.category?.length > 0) {
+          sideEffects.push(
+            movieService.getMoviesByCategory(item.category[0].slug, 1)
+              .then(catRes => {
+                if (catRes?.data?.items) {
+                  setRelatedMovies(catRes.data.items.filter(m => m.slug !== slug));
+                }
+              }).catch(() => { })
+          );
         }
-        if (imgRes.status === 'fulfilled' && imgRes.value?.data?.images) {
-          setTmdbImages(imgRes.value.data.images);
-        }
-        if (peopleRes.status === 'fulfilled' && peopleRes.value?.data) {
-          setTmdbPeoples(peopleRes.value.data);
-        }
-        if (kwRes.status === 'fulfilled' && kwRes.value?.data?.keywords) {
-          setTmdbKeywords(kwRes.value.data.keywords);
-        }
+
+        // Fetch peoples (actor photos)
+        sideEffects.push(
+          movieService.getMoviePeoples(slug)
+            .then(res => {
+              const items = res?.data?.casts || res?.data?.items || res?.casts || [];
+              if (Array.isArray(items) && items.length > 0) setPeoples(items);
+            }).catch(() => { })
+        );
+
+        await Promise.allSettled(sideEffects);
       } else {
         setError('Không tìm thấy phim');
       }
@@ -142,28 +141,39 @@ const MovieDetail = () => {
 
   const posterUrl = getImageUrl(movie.poster_url || movie.thumb_url);
   const thumbUrl = getImageUrl(movie.thumb_url || movie.poster_url);
-  const rating = movie.tmdb?.vote_average || 0;
+  const heroImage = posterUrl;
+  const rating = movie.imdb?.rating || movie.tmdb?.vote_average || 0;
+  const voteCount = movie.tmdb?.vote_count || 0;
   const episodes = movie.episodes?.[0]?.server_data || [];
 
-  // Build tabs dynamically
-  const tabs = ['overview', 'episodes', 'cast'];
-  if (tmdbImages?.backdrops?.length > 0 || tmdbImages?.posters?.length > 0) tabs.push('gallery');
-  tabs.push('related');
+  const description = movie.content
+    ? stripHtml(movie.content)
+    : 'Đang cập nhật...';
+
+  const tabs = ['overview', 'episodes', 'cast', 'related'];
 
   const tabLabels = {
     overview: 'Tổng quan',
     episodes: 'Tập phim',
     cast: 'Diễn viên',
-    gallery: 'Hình ảnh',
     related: 'Đề xuất',
   };
 
-  // Merge cast data: TMDB peoples (with photos) + fallback to movie.actor
-  const castList = tmdbPeoples?.cast?.length > 0
-    ? tmdbPeoples.cast.slice(0, 20)
-    : movie.actor?.map(name => ({ name, profile_path: null })) || [];
+  // Helper: generate a unique color per actor name
+  const nameToColor = (name) => {
+    const colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#a18cd1', '#ffecd2'];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash += name.charCodeAt(i);
+    return colors[hash % colors.length];
+  };
 
-  const crewList = tmdbPeoples?.crew?.filter(c => c.job === 'Director') || [];
+  // Build cast list from movie.actor, enriched with peoples photos if available
+  const castList = (movie.actor || []).map(name => {
+    const found = peoples.find(p => p.name === name || (p.character && p.character === name));
+    return { name, photo: found?.profile_path || found?.image || null };
+  });
+
+  const directorList = movie.director || [];
 
   return (
     <>
@@ -171,7 +181,7 @@ const MovieDetail = () => {
       <main className={styles.movieDetail}>
         {/* Hero backdrop */}
         <div className={styles.hero}>
-          <img src={posterUrl} alt="" className={styles.heroImage} />
+          <img src={heroImage} alt="" className={styles.heroImage} />
           <div className={styles.heroOverlay} />
 
           <div className={styles.heroContent}>
@@ -188,7 +198,7 @@ const MovieDetail = () => {
               <div className={styles.metaRow}>
                 {rating > 0 && (
                   <span className={styles.ratingBadge}>
-                    <FiStar /> {rating.toFixed(1)}
+                    <FiStar /> {rating.toFixed(1)}{voteCount > 0 ? ` (${voteCount})` : ''}
                   </span>
                 )}
                 {movie.year && (
@@ -204,22 +214,11 @@ const MovieDetail = () => {
                 )}
               </div>
 
+              {/* Keywords from API */}
               {movie.category?.length > 0 && (
                 <div className={styles.genres}>
                   {movie.category.map((cat, i) => (
                     <span key={i} className={styles.genreTag}>{cat.name}</span>
-                  ))}
-                </div>
-              )}
-
-              {/* Keywords from TMDB */}
-              {tmdbKeywords?.length > 0 && (
-                <div className={styles.keywords}>
-                  <FiTag className={styles.keywordsIcon} />
-                  {tmdbKeywords.slice(0, 6).map((kw, i) => (
-                    <span key={i} className={styles.keywordTag}>
-                      {kw.name_vn || kw.name}
-                    </span>
                   ))}
                 </div>
               )}
@@ -270,7 +269,7 @@ const MovieDetail = () => {
               <div className={styles.overview}>
                 <h3>Nội dung</h3>
                 <p className={styles.description}>
-                  {movie.content ? stripHtml(movie.content) : 'Đang cập nhật...'}
+                  {description}
                 </p>
 
                 <div className={styles.detailGrid}>
@@ -280,15 +279,10 @@ const MovieDetail = () => {
                       <span>{movie.country.map(c => c.name).join(', ')}</span>
                     </div>
                   )}
-                  {/* Show directors from TMDB if available, else fallback */}
-                  {(crewList.length > 0 || movie.director?.length > 0) && (
+                  {movie.director?.length > 0 && (
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Đạo diễn</span>
-                      <span>
-                        {crewList.length > 0
-                          ? crewList.map(d => d.name).join(', ')
-                          : movie.director.join(', ')}
-                      </span>
+                      <span>{movie.director.join(', ')}</span>
                     </div>
                   )}
                   {movie.status && (
@@ -352,7 +346,7 @@ const MovieDetail = () => {
                       <button
                         key={i}
                         className={styles.episodeBtn}
-                        onClick={() => navigate(`/watch/${slug}`)}
+                        onClick={() => navigate(`/watch/${slug}?ep=${i}`)}
                       >
                         <FiPlay size={14} />
                         <span>{ep.name}</span>
@@ -367,29 +361,45 @@ const MovieDetail = () => {
 
             {activeTab === 'cast' && (
               <div className={styles.castList}>
-                {castList.length > 0 ? (
-                  <div className={styles.castGrid}>
-                    {castList.map((actor, i) => (
-                      <div key={i} className={styles.castItem}>
-                        {actor.profile_path ? (
-                          <img
-                            src={`${TMDB_IMG}/w185${actor.profile_path}`}
-                            alt={actor.name}
-                            className={styles.castPhoto}
-                          />
-                        ) : (
-                          <div className={styles.castAvatar}>
-                            {(actor.name || '?').charAt(0)}
+                {directorList.length > 0 && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <h4 style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Đạo diễn</h4>
+                    <div className={styles.castGrid}>
+                      {directorList.map((name, i) => (
+                        <div key={i} className={styles.castItem}>
+                          <div className={styles.castAvatar} style={{ background: nameToColor(name) }}>
+                            {(name || '?').charAt(0).toUpperCase()}
                           </div>
-                        )}
-                        <div className={styles.castInfo}>
-                          <span className={styles.castName}>{actor.name}</span>
-                          {actor.character && (
-                            <span className={styles.castRole}>{actor.character}</span>
-                          )}
+                          <div className={styles.castInfo}>
+                            <span className={styles.castName}>{name}</span>
+                            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Đạo diễn</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {castList.length > 0 ? (
+                  <div>
+                    {directorList.length > 0 && (
+                      <h4 style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Diễn viên</h4>
+                    )}
+                    <div className={styles.castGrid}>
+                      {castList.map((actor, i) => (
+                        <div key={i} className={styles.castItem}>
+                          <div className={styles.castAvatar} style={{ background: nameToColor(actor.name) }}>
+                            {actor.photo ? (
+                              <img src={actor.photo} alt={actor.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                            ) : (
+                              (actor.name || '?').charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          <div className={styles.castInfo}>
+                            <span className={styles.castName}>{actor.name}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <p className={styles.empty}>Đang cập nhật...</p>
@@ -397,62 +407,6 @@ const MovieDetail = () => {
               </div>
             )}
 
-            {activeTab === 'gallery' && (
-              <div className={styles.gallerySection}>
-                {tmdbImages?.backdrops?.length > 0 && (
-                  <>
-                    <h3 className={styles.galleryTitle}>
-                      <FiImage /> Ảnh nền ({tmdbImages.backdrops.length})
-                    </h3>
-                    <div className={styles.galleryGrid}>
-                      {tmdbImages.backdrops.slice(0, 12).map((img, i) => (
-                        <div
-                          key={i}
-                          className={styles.galleryItem}
-                          onClick={() => setSelectedImage(`${TMDB_IMG}/original${img.file_path}`)}
-                        >
-                          <img
-                            src={`${TMDB_IMG}/w500${img.file_path}`}
-                            alt={`Backdrop ${i + 1}`}
-                            loading="lazy"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-                {tmdbImages?.posters?.length > 0 && (
-                  <>
-                    <h3 className={styles.galleryTitle}>
-                      <FiImage /> Poster ({tmdbImages.posters.length})
-                    </h3>
-                    <div className={styles.posterGrid}>
-                      {tmdbImages.posters.slice(0, 8).map((img, i) => (
-                        <div
-                          key={i}
-                          className={styles.galleryItem}
-                          onClick={() => setSelectedImage(`${TMDB_IMG}/original${img.file_path}`)}
-                        >
-                          <img
-                            src={`${TMDB_IMG}/w342${img.file_path}`}
-                            alt={`Poster ${i + 1}`}
-                            loading="lazy"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {/* Lightbox */}
-                {selectedImage && (
-                  <div className={styles.lightbox} onClick={() => setSelectedImage(null)}>
-                    <img src={selectedImage} alt="Full size" />
-                    <button className={styles.lightboxClose}>✕</button>
-                  </div>
-                )}
-              </div>
-            )}
 
             {activeTab === 'related' && (
               <div className={styles.relatedSection}>

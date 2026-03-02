@@ -26,6 +26,19 @@
   margin: 0 auto;
 }
 
+/* Spacer: pushes search+account to the right */
+.headerSpacer {
+  flex: 1;
+}
+
+/* Right group: search + account icon */
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
 /* Logo */
 .logo {
   display: flex;
@@ -144,43 +157,16 @@
   }
 }
 
-/* Search bar */
-.searchBar {
-  display: flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 50px;
-  padding: 0 16px;
+/* Search wrapper for SearchBar component */
+.searchWrapper {
   flex: 1;
-  max-width: 320px;
-  transition: all 0.3s ease;
+  max-width: 340px;
+  position: relative;
 }
 
-.searchBar:focus-within {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(102, 126, 234, 0.4);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.searchIcon {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-.searchInput {
-  background: none;
-  border: none;
-  color: white;
-  padding: 10px 12px;
-  font-size: 14px;
-  width: 100%;
-  outline: none;
-}
-
-.searchInput::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+/* Override SearchBar's default margin when used in header */
+.searchWrapper>div {
+  margin-bottom: 0;
 }
 
 /* Actions */
@@ -293,7 +279,7 @@
     display: none;
   }
 
-  .searchBar {
+  .searchWrapper {
     display: none;
   }
 

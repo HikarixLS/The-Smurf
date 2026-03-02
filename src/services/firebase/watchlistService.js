@@ -9,9 +9,11 @@ const HISTORY_REF = 'userHistory';
 
 export const addToWatchlist = async (userId, movie) => {
     if (!database || !userId) return;
-    const itemRef = ref(database, `${WATCHLIST_REF}/${userId}/${movie.slug}`);
+    const itemSlug = movie.slug || movie._id;
+    if (!itemSlug) { console.warn('[Watchlist] Cannot add item with no slug or _id', movie); return; }
+    const itemRef = ref(database, `${WATCHLIST_REF}/${userId}/${itemSlug}`);
     await set(itemRef, {
-        slug: movie.slug,
+        slug: itemSlug,
         name: movie.name,
         origin_name: movie.origin_name || '',
         thumb_url: movie.thumb_url || movie.poster_url || '',
@@ -45,9 +47,11 @@ export const getWatchlist = async (userId) => {
 
 export const addToFavorites = async (userId, movie) => {
     if (!database || !userId) return;
-    const itemRef = ref(database, `${FAVORITES_REF}/${userId}/${movie.slug}`);
+    const itemSlug = movie.slug || movie._id;
+    if (!itemSlug) { console.warn('[Favorites] Cannot add item with no slug or _id', movie); return; }
+    const itemRef = ref(database, `${FAVORITES_REF}/${userId}/${itemSlug}`);
     await set(itemRef, {
-        slug: movie.slug,
+        slug: itemSlug,
         name: movie.name,
         origin_name: movie.origin_name || '',
         thumb_url: movie.thumb_url || movie.poster_url || '',
@@ -81,9 +85,11 @@ export const getFavorites = async (userId) => {
 
 export const addToHistory = async (userId, movie) => {
     if (!database || !userId) return;
-    const itemRef = ref(database, `${HISTORY_REF}/${userId}/${movie.slug}`);
+    const itemSlug = movie.slug || movie._id;
+    if (!itemSlug) { console.warn('[History] Cannot add item with no slug or _id', movie); return; }
+    const itemRef = ref(database, `${HISTORY_REF}/${userId}/${itemSlug}`);
     await set(itemRef, {
-        slug: movie.slug,
+        slug: itemSlug,
         name: movie.name,
         origin_name: movie.origin_name || '',
         thumb_url: movie.thumb_url || movie.poster_url || '',

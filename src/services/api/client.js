@@ -20,14 +20,11 @@ apiClient.interceptors.request.use(
     // }
     return config;
   },
-  (error) => {
-    console.error('Request error:', error);
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor
- apiClient.interceptors.response.use(
+apiClient.interceptors.response.use(
   (response) => {
     // Return response data directly
     return response.data;
@@ -36,9 +33,8 @@ apiClient.interceptors.request.use(
     // Global error handling
     if (error.response) {
       // Server responded with error status
-      console.error('Response error:', error.response.status, error.response.data);
-
-      switch (error.response.status) {
+      const { status } = error.response;
+      switch (status) {
         case 404:
           return Promise.reject(new Error('Không tìm thấy dữ liệu'));
         case 500:
@@ -49,12 +45,11 @@ apiClient.interceptors.request.use(
           return Promise.reject(new Error('Đã xảy ra lỗi, vui lòng thử lại'));
       }
     } else if (error.request) {
-      // Request made but no response received
-      console.error('No response received:', error.request);
+      // Request made but no response received — log URL only, not the entire XMLHttpRequest
+      const url = error.config?.url || 'unknown';
+      console.warn(`[API] No response from: ${url}`);
       return Promise.reject(new Error('Không thể kết nối đến server'));
     } else {
-      // Error in request configuration
-      console.error('Request setup error:', error.message);
       return Promise.reject(error);
     }
   }

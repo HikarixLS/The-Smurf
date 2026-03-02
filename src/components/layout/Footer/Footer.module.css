@@ -4,7 +4,6 @@
   -webkit-backdrop-filter: blur(var(--blur-heavy));
   border-top: 1px solid var(--glass-border);
   margin-top: auto;
-  padding: var(--spacing-xl) 0;
 }
 
 .footerContent {
@@ -51,9 +50,7 @@
 
 .copyright {
   text-align: center;
-  padding-top: var(--spacing-lg);
-  margin-top: var(--spacing-lg);
-  border-top: 1px solid var(--glass-border);
+  padding: var(--spacing-md) 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
 }

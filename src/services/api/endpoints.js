@@ -8,6 +8,8 @@ export const ENDPOINTS = {
   MOVIES_FEATURE: '/v1/api/danh-sach/phim-bo',
   MOVIES_SERIES: '/v1/api/danh-sach/phim-bo',
   MOVIES_SINGLE: '/v1/api/danh-sach/phim-le',
+  MOVIES_HOATHINH: '/v1/api/danh-sach/hoat-hinh',
+  MOVIES_TVSHOWS: '/v1/api/danh-sach/tv-shows',
   MOVIES_UPCOMING: '/v1/api/danh-sach/phim-sap-chieu',
   MOVIES_TRENDING: '/v1/api/danh-sach/phim-moi-cap-nhat',
 

@@ -49,7 +49,7 @@ const HeroBanner = ({ movies = [] }) => {
                     alt={displayTitle}
                     className={styles.backdropImage}
                     key={currentIndex}
-                    fetchpriority="high"
+                    fetchPriority="high"
                     loading="eager"
                     width={1920}
                     height={1080}

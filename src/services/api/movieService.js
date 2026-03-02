@@ -12,7 +12,7 @@ export const movieService = {
       const response = await apiClient.get(ENDPOINTS.HOME);
       return response;
     } catch (error) {
-      console.error('Error fetching home data:', error);
+      console.warn('Error fetching home data:', error);
       throw error;
     }
   },
@@ -28,21 +28,34 @@ export const movieService = {
     try {
       const params = new URLSearchParams({ page: page.toString() });
 
-      if (filters.type) params.append('type', filters.type);
       if (filters.category) params.append('category', filters.category);
       if (filters.country) params.append('country', filters.country);
       if (filters.year) params.append('year', filters.year);
       if (filters.limit) params.append('limit', filters.limit.toString());
       if (sortField) params.append('sort_field', sortField);
 
-      const endpoint = filters.type === 'series' ? ENDPOINTS.MOVIES_SERIES :
-        filters.type === 'single' ? ENDPOINTS.MOVIES_SINGLE :
-          ENDPOINTS.MOVIES_NEW;
+      let endpoint;
+      switch (filters.type) {
+        case 'series':
+          endpoint = ENDPOINTS.MOVIES_SERIES;
+          break;
+        case 'single':
+          endpoint = ENDPOINTS.MOVIES_SINGLE;
+          break;
+        case 'hoathinh':
+          endpoint = ENDPOINTS.MOVIES_HOATHINH;
+          break;
+        case 'tvshows':
+          endpoint = ENDPOINTS.MOVIES_TVSHOWS;
+          break;
+        default:
+          endpoint = ENDPOINTS.MOVIES_NEW;
+      }
 
       const response = await apiClient.get(`${endpoint}?${params.toString()}`);
       return response;
     } catch (error) {
-      console.error('Error fetching movies:', error);
+      console.warn('Error fetching movies:', error);
       throw error;
     }
   },
@@ -55,7 +68,7 @@ export const movieService = {
       const response = await apiClient.get(`${ENDPOINTS.MOVIE_DETAIL}/${slug}`);
       return response;
     } catch (error) {
-      console.error('Error fetching movie detail:', error);
+      console.warn('Error fetching movie detail:', error);
       throw error;
     }
   },
@@ -68,7 +81,7 @@ export const movieService = {
       const response = await apiClient.get(`${ENDPOINTS.MOVIE_DETAIL}/${slug}/images`);
       return response;
     } catch (error) {
-      console.error('Error fetching movie images:', error);
+      console.warn('Error fetching movie images:', error);
       return null;
     }
   },
@@ -81,7 +94,7 @@ export const movieService = {
       const response = await apiClient.get(`${ENDPOINTS.MOVIE_DETAIL}/${slug}/peoples`);
       return response;
     } catch (error) {
-      console.error('Error fetching movie peoples:', error);
+      console.warn('Error fetching movie peoples:', error);
       return null;
     }
   },
@@ -94,7 +107,7 @@ export const movieService = {
       const response = await apiClient.get(`${ENDPOINTS.MOVIE_DETAIL}/${slug}/keywords`);
       return response;
     } catch (error) {
-      console.error('Error fetching movie keywords:', error);
+      console.warn('Error fetching movie keywords:', error);
       return null;
     }
   },
@@ -107,7 +120,7 @@ export const movieService = {
       const response = await apiClient.get(ENDPOINTS.CATEGORIES);
       return response;
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.warn('Error fetching categories:', error);
       throw error;
     }
   },
@@ -120,7 +133,7 @@ export const movieService = {
       const response = await apiClient.get(ENDPOINTS.COUNTRIES);
       return response;
     } catch (error) {
-      console.error('Error fetching countries:', error);
+      console.warn('Error fetching countries:', error);
       throw error;
     }
   },
@@ -133,7 +146,7 @@ export const movieService = {
       const response = await apiClient.get(ENDPOINTS.YEARS);
       return response;
     } catch (error) {
-      console.error('Error fetching years:', error);
+      console.warn('Error fetching years:', error);
       throw error;
     }
   },
@@ -146,7 +159,7 @@ export const movieService = {
       const response = await apiClient.get(`${ENDPOINTS.MOVIES_NEW}?page=1&limit=10`);
       return response;
     } catch (error) {
-      console.error('Error fetching featured movies:', error);
+      console.warn('Error fetching featured movies:', error);
       throw error;
     }
   },
@@ -154,14 +167,16 @@ export const movieService = {
   /**
    * Get movies by category with sorting
    */
-  getMoviesByCategory: async (categorySlug, page = 1, sortField = '') => {
+  getMoviesByCategory: async (categorySlug, page = 1, sortField = '', limit = 16, type = '') => {
     try {
       const params = new URLSearchParams({ page: page.toString() });
       if (sortField) params.append('sort_field', sortField);
+      if (limit) params.append('limit', limit.toString());
+      if (type) params.append('type_list', type);
       const response = await apiClient.get(`${ENDPOINTS.CATEGORY}/${categorySlug}?${params.toString()}`);
       return response;
     } catch (error) {
-      console.error('Error fetching movies by category:', error);
+      console.warn('Error fetching movies by category:', error);
       throw error;
     }
   },
@@ -169,14 +184,16 @@ export const movieService = {
   /**
    * Get movies by country with sorting
    */
-  getMoviesByCountry: async (countrySlug, page = 1, sortField = '') => {
+  getMoviesByCountry: async (countrySlug, page = 1, sortField = '', limit = 16, type = '') => {
     try {
       const params = new URLSearchParams({ page: page.toString() });
       if (sortField) params.append('sort_field', sortField);
+      if (limit) params.append('limit', limit.toString());
+      if (type) params.append('type_list', type);
       const response = await apiClient.get(`${ENDPOINTS.COUNTRY}/${countrySlug}?${params.toString()}`);
       return response;
     } catch (error) {
-      console.error('Error fetching movies by country:', error);
+      console.warn('Error fetching movies by country:', error);
       throw error;
     }
   },
@@ -184,14 +201,16 @@ export const movieService = {
   /**
    * Get movies by year with sorting
    */
-  getMoviesByYear: async (year, page = 1, sortField = '') => {
+  getMoviesByYear: async (year, page = 1, sortField = '', limit = 16, type = '') => {
     try {
       const params = new URLSearchParams({ page: page.toString() });
       if (sortField) params.append('sort_field', sortField);
+      if (limit) params.append('limit', limit.toString());
+      if (type) params.append('type_list', type);
       const response = await apiClient.get(`${ENDPOINTS.YEAR}/${year}?${params.toString()}`);
       return response;
     } catch (error) {
-      console.error('Error fetching movies by year:', error);
+      console.warn('Error fetching movies by year:', error);
       throw error;
     }
   },
@@ -204,7 +223,7 @@ export const movieService = {
       const response = await apiClient.get(`${ENDPOINTS.MOVIES_NEW}?page=${page}&limit=${limit}`);
       return response;
     } catch (error) {
-      console.error('Error fetching new releases:', error);
+      console.warn('Error fetching new releases:', error);
       throw error;
     }
   },
@@ -217,7 +236,7 @@ export const movieService = {
       const response = await apiClient.get(`${ENDPOINTS.MOVIES_SERIES}?page=${page}&limit=${limit}`);
       return response;
     } catch (error) {
-      console.error('Error fetching series:', error);
+      console.warn('Error fetching series:', error);
       throw error;
     }
   },
@@ -230,7 +249,7 @@ export const movieService = {
       const response = await apiClient.get(`${ENDPOINTS.MOVIES_SINGLE}?page=${page}&limit=${limit}`);
       return response;
     } catch (error) {
-      console.error('Error fetching single movies:', error);
+      console.warn('Error fetching single movies:', error);
       throw error;
     }
   },
@@ -244,7 +263,7 @@ export const movieService = {
       const response = await apiClient.get(`${ENDPOINTS.SEARCH}?${params.toString()}`);
       return response;
     } catch (error) {
-      console.error('Error searching movies:', error);
+      console.warn('Error searching movies:', error);
       throw error;
     }
   },

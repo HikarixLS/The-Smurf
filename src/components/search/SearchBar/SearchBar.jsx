@@ -4,6 +4,7 @@ import { FiSearch, FiX } from 'react-icons/fi';
 import PropTypes from 'prop-types';
 import { searchService } from '@/services/api/searchService';
 import useDebounce from '@/hooks/useDebounce';
+import { getImageUrl, PLACEHOLDER_IMG } from '@/utils/helpers';
 import styles from './SearchBar.module.css';
 
 const SearchBar = ({ onSearch, autoFocus = false }) => {
@@ -13,7 +14,8 @@ const SearchBar = ({ onSearch, autoFocus = false }) => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const inputRef = useRef(null);
-  const debouncedKeyword = useDebounce(keyword, 500);
+  const wrapperRef = useRef(null);
+  const debouncedKeyword = useDebounce(keyword, 400);
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -30,10 +32,21 @@ const SearchBar = ({ onSearch, autoFocus = false }) => {
     }
   }, [debouncedKeyword]);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setShowAutocomplete(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const fetchSuggestions = async (searchTerm) => {
     setLoading(true);
     try {
-      const response = await searchService.getSearchSuggestions(searchTerm, 5);
+      const response = await searchService.getSearchSuggestions(searchTerm, 8);
       if (response && response.data && response.data.items) {
         setSuggestions(response.data.items);
         setShowAutocomplete(true);
@@ -77,14 +90,8 @@ const SearchBar = ({ onSearch, autoFocus = false }) => {
     }
   };
 
-  const handleBlur = () => {
-    setTimeout(() => {
-      setShowAutocomplete(false);
-    }, 200);
-  };
-
   return (
-    <div className={styles.searchBar}>
+    <div className={styles.searchBar} ref={wrapperRef}>
       <form onSubmit={handleSubmit}>
         <div className={styles.inputContainer}>
           <FiSearch className={styles.searchIcon} size={20} />
@@ -95,8 +102,7 @@ const SearchBar = ({ onSearch, autoFocus = false }) => {
             placeholder="Tìm kiếm phim..."
             value={keyword}
             onChange={handleInputChange}
-            onBlur={handleBlur}
-            onFocus={() => keyword.length >= 2 && setShowAutocomplete(true)}
+            onFocus={() => keyword.length >= 2 && suggestions.length > 0 && setShowAutocomplete(true)}
           />
           {keyword && (
             <button
@@ -116,20 +122,51 @@ const SearchBar = ({ onSearch, autoFocus = false }) => {
             <div
               key={movie._id || movie.slug}
               className={styles.autocompleteItem}
-              onClick={() => handleSuggestionClick(movie)}
+              onMouseDown={() => handleSuggestionClick(movie)}
             >
-              <div className={styles.itemTitle}>{movie.name}</div>
-              <div className={styles.itemMeta}>
-                {movie.year} • {movie.quality} • {movie.lang}
+              <img
+                src={getImageUrl(movie.poster_url || movie.thumb_url)}
+                alt={movie.name}
+                className={styles.itemThumb}
+                onError={(e) => { e.target.onerror = null; e.target.src = PLACEHOLDER_IMG; }}
+              />
+              <div className={styles.itemContent}>
+                <div className={styles.itemTitle}>{movie.name}</div>
+                {movie.origin_name && movie.origin_name !== movie.name && (
+                  <div className={styles.itemOrigin}>{movie.origin_name}</div>
+                )}
+                <div className={styles.itemMeta}>
+                  {movie.year && <span>{movie.year}</span>}
+                  {movie.quality && <span className={styles.itemBadge}>{movie.quality}</span>}
+                  {movie.lang && <span className={styles.itemBadge}>{movie.lang}</span>}
+                  {movie.episode_current && <span>{movie.episode_current}</span>}
+                </div>
               </div>
             </div>
           ))}
+          {keyword.trim() && (
+            <div
+              className={styles.viewAll}
+              onMouseDown={() => {
+                setShowAutocomplete(false);
+                navigate(`/search?q=${encodeURIComponent(keyword)}`);
+              }}
+            >
+              Xem tất cả kết quả cho "{keyword}"
+            </div>
+          )}
         </div>
       )}
 
       {showAutocomplete && keyword.length >= 2 && suggestions.length === 0 && !loading && (
         <div className={styles.autocomplete}>
           <div className={styles.noResults}>Không tìm thấy kết quả</div>
+        </div>
+      )}
+
+      {showAutocomplete && loading && keyword.length >= 2 && suggestions.length === 0 && (
+        <div className={styles.autocomplete}>
+          <div className={styles.noResults}>Đang tìm kiếm...</div>
         </div>
       )}
     </div>

@@ -31,10 +31,11 @@ const WatchPartyRoom = () => {
     const [editingName, setEditingName] = useState(false);
     const [nickname, setNickname] = useState('');
     const [isPlaying, setIsPlaying] = useState(false);
-    const [isMuted, setIsMuted] = useState(false);
+    const [isMuted, setIsMuted] = useState(true);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isBuffering, setIsBuffering] = useState(false);
+    const [videoReady, setVideoReady] = useState(false);
 
     // Refs — "Flag" pattern to prevent infinite loops
     const videoRef = useRef(null);
@@ -46,6 +47,7 @@ const WatchPartyRoom = () => {
     const roomRef = useRef(null);
 
     const session = watchPartyService.getSession();
+    const isHost = room?.hostId === session.id;
 
     // Keep roomRef in sync (avoids stale closures)
     useEffect(() => { roomRef.current = room; }, [room]);
@@ -112,10 +114,20 @@ const WatchPartyRoom = () => {
     }, [roomId]);
 
     // ---- HLS player setup ----
+    const [hlsFailed, setHlsFailed] = useState(false);
+
     useEffect(() => {
         const episodes = movie?.episodes?.[0]?.server_data || [];
         const ep = episodes[currentEpisode];
-        if (!ep?.link_m3u8 || !videoRef.current) return;
+        if (!ep?.link_m3u8 || !videoRef.current || hlsFailed) return;
+
+        // Reset ready state
+        setVideoReady(false);
+
+        // Cancelled flag to prevent stale callbacks after cleanup (React StrictMode protection)
+        let cancelled = false;
+        let mediaRecoveryAttempts = 0;
+        const MAX_RECOVERY = 3;
 
         // Destroy previous HLS instance
         if (hlsRef.current) {
@@ -124,33 +136,103 @@ const WatchPartyRoom = () => {
         }
 
         const video = videoRef.current;
+        // Start muted to comply with browser autoplay policy
+        video.muted = true;
+        setIsMuted(true);
 
         if (Hls.isSupported()) {
             const hls = new Hls({
                 maxBufferLength: 30,
                 maxMaxBufferLength: 60,
+                enableWorker: true,
+                xhrSetup: (xhr) => {
+                    xhr.withCredentials = false;
+                },
             });
+
             hls.loadSource(ep.link_m3u8);
             hls.attachMedia(video);
+
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                // Don't auto-play — wait for host to press play
+                if (cancelled) return;
+                console.log('[WatchParty] HLS manifest parsed, ready to play');
+                setVideoReady(true);
+
+                // Auto-play if the room state says we should be playing
+                const pb = roomRef.current?.playback;
+                if (pb?.isPlaying) {
+                    video.play().catch(() => {
+                        // Fallback: play muted to comply with autoplay policy
+                        video.muted = true;
+                        setIsMuted(true);
+                        video.play().catch(() => { });
+                    });
+                }
             });
+
             hls.on(Hls.Events.ERROR, (_, data) => {
-                if (data.fatal) console.error('HLS fatal error:', data);
+                if (cancelled) return;
+
+                // Only log fatal errors to reduce console noise
+                if (data.fatal) {
+                    console.warn('[WatchParty] HLS fatal error:', data.type, data.details);
+                    switch (data.type) {
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            mediaRecoveryAttempts++;
+                            if (mediaRecoveryAttempts <= MAX_RECOVERY) {
+                                console.log(`[WatchParty] Recovering media error (attempt ${mediaRecoveryAttempts}/${MAX_RECOVERY})`);
+                                hls.recoverMediaError();
+                            } else {
+                                console.warn('[WatchParty] Max media recovery attempts reached, giving up');
+                                // Don't destroy — let HLS continue with what it has
+                            }
+                            break;
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            setTimeout(() => {
+                                if (hlsRef.current && !cancelled) {
+                                    hls.startLoad();
+                                }
+                            }, 2000);
+                            setTimeout(() => {
+                                if (!cancelled && video.currentTime === 0 && video.paused) {
+                                    hls.destroy();
+                                    hlsRef.current = null;
+                                    setHlsFailed(true);
+                                }
+                            }, 5000);
+                            break;
+                        default:
+                            hls.destroy();
+                            hlsRef.current = null;
+                            setHlsFailed(true);
+                            break;
+                    }
+                }
+                // Non-fatal errors (bufferStalledError, bufferSeekOverHole, etc.)
+                // are handled internally by HLS.js — no action needed
             });
+
             hlsRef.current = hls;
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
             // Safari native HLS
             video.src = ep.link_m3u8;
+            video.addEventListener('loadedmetadata', () => {
+                if (cancelled) return;
+                setVideoReady(true);
+                video.play().catch(() => { });
+            }, { once: true });
+        } else {
+            setHlsFailed(true);
         }
 
         return () => {
+            cancelled = true;
             if (hlsRef.current) {
                 hlsRef.current.destroy();
                 hlsRef.current = null;
             }
         };
-    }, [movie, currentEpisode]);
+    }, [movie, currentEpisode, hlsFailed]);
 
     // ---- Host heartbeat: broadcast time to Firebase ----
     useEffect(() => {
@@ -171,7 +253,8 @@ const WatchPartyRoom = () => {
     // ---- Sync non-host to host's playback state ----
     const syncToHost = useCallback((playback) => {
         const video = videoRef.current;
-        if (!video || isSyncing.current) return;
+        // Only sync non-host users; skip if already syncing
+        if (!video || isSyncing.current || roomRef.current?.hostId === session.id) return;
 
         const estimatedHostTime = estimateTime(
             playback.currentTime || 0,
@@ -188,15 +271,17 @@ const WatchPartyRoom = () => {
             video.currentTime = estimatedHostTime;
         }
 
-        // Sync play/pause
+        // Sync play/pause state
         if (playback.isPlaying && video.paused) {
             video.play().catch(() => { });
+            setIsPlaying(true);
         } else if (!playback.isPlaying && !video.paused) {
             video.pause();
+            setIsPlaying(false);
         }
 
-        setTimeout(() => { isSyncing.current = false; }, 500);
-    }, []);
+        setTimeout(() => { isSyncing.current = false; }, 1000);
+    }, [session.id]);
 
     // Estimate host's current time accounting for network delay
     function estimateTime(hostTime, hostTimestamp, hostIsPlaying) {
@@ -217,40 +302,66 @@ const WatchPartyRoom = () => {
     const onDurationChange = () => {
         if (videoRef.current) setDuration(videoRef.current.duration);
     };
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
+    const onPlay = () => {
+        // Only update state if not currently executing a sync (prevents feedback loop)
+        if (!isSyncing.current) {
+            setIsPlaying(true);
+            // If non-host video started playing without host command, pause it immediately
+            if (roomRef.current && roomRef.current.hostId !== session.id) {
+                const pb = roomRef.current?.playback;
+                if (pb && !pb.isPlaying) {
+                    videoRef.current?.pause();
+                }
+            }
+        }
+    };
+    const onPause = () => {
+        if (!isSyncing.current) {
+            setIsPlaying(false);
+        }
+    };
     const onWaiting = () => setIsBuffering(true);
     const onCanPlay = () => setIsBuffering(false);
 
     // ---- Handlers ----
     const handlePlayPause = useCallback(() => {
         const video = videoRef.current;
-        if (!video || room?.hostId !== session.id) return;
+        if (!video || !videoReady) return;
 
         isSyncing.current = true;
 
         if (video.paused) {
-            video.play().catch(() => { });
-            watchPartyService.syncPlayback(roomId, {
-                currentTime: video.currentTime,
-                isPlaying: true,
-                episode: currentEpisode,
+            video.play().catch((err) => {
+                console.warn('[WatchParty] Play failed:', err.message);
+                // If autoplay fails, try playing muted
+                video.muted = true;
+                setIsMuted(true);
+                video.play().catch(() => { });
             });
-            watchPartyService.updateRoomStatus(roomId, 'playing');
-            watchPartyService.sendMessage(roomId, '▶️ Host đã bấm phát');
+            if (isHost) {
+                watchPartyService.syncPlayback(roomId, {
+                    currentTime: video.currentTime,
+                    isPlaying: true,
+                    episode: currentEpisode,
+                });
+                watchPartyService.updateRoomStatus(roomId, 'playing');
+                watchPartyService.sendMessage(roomId, '▶️ Host đã bấm phát');
+            }
         } else {
             video.pause();
-            watchPartyService.syncPlayback(roomId, {
-                currentTime: video.currentTime,
-                isPlaying: false,
-                episode: currentEpisode,
-            });
-            watchPartyService.updateRoomStatus(roomId, 'paused');
-            watchPartyService.sendMessage(roomId, '⏸️ Host đã tạm dừng');
+            if (isHost) {
+                watchPartyService.syncPlayback(roomId, {
+                    currentTime: video.currentTime,
+                    isPlaying: false,
+                    episode: currentEpisode,
+                });
+                watchPartyService.updateRoomStatus(roomId, 'paused');
+                watchPartyService.sendMessage(roomId, '⏸️ Host đã tạm dừng');
+            }
         }
 
-        setTimeout(() => { isSyncing.current = false; }, 500);
-    }, [room, currentEpisode, roomId]);
+        setTimeout(() => { isSyncing.current = false; }, 1000);
+    }, [room, currentEpisode, roomId, videoReady, isHost]);
 
     const handleSeek = (e) => {
         const video = videoRef.current;
@@ -328,11 +439,10 @@ const WatchPartyRoom = () => {
     };
 
     // ---- Derived ----
-    const isHost = room?.hostId === session.id;
     const members = room?.members ? Object.values(room.members) : [];
     const episodes = movie?.episodes?.[0]?.server_data || [];
     const currentVideo = episodes[currentEpisode];
-    const hasHls = !!currentVideo?.link_m3u8;
+    const hasHls = !!currentVideo?.link_m3u8 && !hlsFailed;
 
     if (loading) return (
         <div className={styles.loadingPage}>
@@ -401,14 +511,18 @@ const WatchPartyRoom = () => {
                         {hasHls && (
                             <div className={styles.controls}>
                                 <div className={styles.controlLeft}>
-                                    {isHost ? (
-                                        <button className={styles.controlBtn} onClick={handlePlayPause}>
-                                            {isPlaying ? <FiPause /> : <FiPlay />}
-                                            {isPlaying ? ' Tạm dừng' : ' Phát'}
-                                        </button>
-                                    ) : (
+                                    <button
+                                        className={styles.controlBtn}
+                                        onClick={isHost ? handlePlayPause : undefined}
+                                        disabled={!videoReady || !isHost}
+                                        title={!isHost ? 'Chỉ host mới có thể điều khiển' : ''}
+                                    >
+                                        {isPlaying ? <FiPause /> : <FiPlay />}
+                                        {!videoReady ? ' Đang tải...' : isPlaying ? ' Tạm dừng' : ' Phát'}
+                                    </button>
+                                    {!isHost && (
                                         <span className={styles.syncLabel}>
-                                            🔄 Đồng bộ với {room?.hostName}
+                                            🔄 Đang đồng bộ với {room?.hostName}
                                         </span>
                                     )}
                                     <button className={styles.iconBtn} onClick={handleToggleMute}>

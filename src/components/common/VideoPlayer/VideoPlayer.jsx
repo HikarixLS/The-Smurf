@@ -2,12 +2,12 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import Hls from 'hls.js';
 import {
     FiPlay, FiPause, FiVolume2, FiVolumeX,
-    FiMaximize, FiMinimize, FiSettings,
-    FiSkipForward, FiSkipBack, FiChevronsRight
+    FiMaximize, FiMinimize,
+    FiSkipForward, FiSkipBack
 } from 'react-icons/fi';
 import styles from './VideoPlayer.module.css';
 
-const VideoPlayer = ({ src, poster, onError }) => {
+const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) => {
     const videoRef = useRef(null);
     const hlsRef = useRef(null);
     const containerRef = useRef(null);
@@ -20,16 +20,16 @@ const VideoPlayer = ({ src, poster, onError }) => {
     const [muted, setMuted] = useState(false);
     const [fullscreen, setFullscreen] = useState(false);
     const [showControls, setShowControls] = useState(true);
-    const [showSettings, setShowSettings] = useState(false);
-    const [qualities, setQualities] = useState([]);
-    const [currentQuality, setCurrentQuality] = useState(-1); // -1 = auto
     const [buffered, setBuffered] = useState(0);
-    const [showSkipIntro, setShowSkipIntro] = useState(false);
+    const [isBuffering, setIsBuffering] = useState(false);
 
     // Initialize HLS
     useEffect(() => {
         const video = videoRef.current;
         if (!video || !src) return;
+
+        setIsBuffering(true);
+        setPlaying(false);
 
         if (Hls.isSupported()) {
             const hls = new Hls({
@@ -40,15 +40,7 @@ const VideoPlayer = ({ src, poster, onError }) => {
             hls.loadSource(src);
             hls.attachMedia(video);
 
-            hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
-                const levels = data.levels.map((level, i) => ({
-                    index: i,
-                    height: level.height,
-                    width: level.width,
-                    bitrate: level.bitrate,
-                    label: level.height ? `${level.height}p` : `${Math.round(level.bitrate / 1000)}kbps`,
-                }));
-                setQualities(levels);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 video.play().catch(() => { });
             });
 
@@ -77,9 +69,7 @@ const VideoPlayer = ({ src, poster, onError }) => {
 
         const onTimeUpdate = () => {
             setCurTime(video.currentTime);
-            // Show skip intro in first 2 min
-            setShowSkipIntro(video.currentTime < 120 && video.currentTime > 5);
-            // Buffer
+            if (onTimeUpdateProp) onTimeUpdateProp(video.currentTime);
             if (video.buffered.length > 0) {
                 setBuffered(video.buffered.end(video.buffered.length - 1));
             }
@@ -87,19 +77,28 @@ const VideoPlayer = ({ src, poster, onError }) => {
         const onDurationChange = () => setDuration(video.duration || 0);
         const onPlay = () => setPlaying(true);
         const onPause = () => setPlaying(false);
+        const onWaiting = () => setIsBuffering(true);
+        const onCanPlay = () => setIsBuffering(false);
+        const onPlaying = () => setIsBuffering(false);
 
         video.addEventListener('timeupdate', onTimeUpdate);
         video.addEventListener('durationchange', onDurationChange);
         video.addEventListener('play', onPlay);
         video.addEventListener('pause', onPause);
+        video.addEventListener('waiting', onWaiting);
+        video.addEventListener('canplay', onCanPlay);
+        video.addEventListener('playing', onPlaying);
 
         return () => {
             video.removeEventListener('timeupdate', onTimeUpdate);
             video.removeEventListener('durationchange', onDurationChange);
             video.removeEventListener('play', onPlay);
             video.removeEventListener('pause', onPause);
+            video.removeEventListener('waiting', onWaiting);
+            video.removeEventListener('canplay', onCanPlay);
+            video.removeEventListener('playing', onPlaying);
         };
-    }, []);
+    }, [onTimeUpdateProp]);
 
     // Auto-hide controls
     const resetHideTimer = useCallback(() => {
@@ -124,6 +123,39 @@ const VideoPlayer = ({ src, poster, onError }) => {
         return () => document.removeEventListener('fullscreenchange', onFSChange);
     }, []);
 
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Only handle if video player is in view / focused context
+            const tag = document.activeElement?.tagName?.toLowerCase();
+            if (tag === 'input' || tag === 'textarea') return;
+
+            switch (e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'KeyF':
+                    e.preventDefault();
+                    toggleFullscreen();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    seek(-10);
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    seek(10);
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     // Controls
     const togglePlay = () => {
         const v = videoRef.current;
@@ -135,13 +167,6 @@ const VideoPlayer = ({ src, poster, onError }) => {
         const v = videoRef.current;
         if (!v) return;
         v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + seconds));
-    };
-
-    const skipIntro = () => {
-        const v = videoRef.current;
-        if (!v) return;
-        v.currentTime = Math.min(v.duration, v.currentTime + 90);
-        setShowSkipIntro(false);
     };
 
     const handleSeek = (e) => {
@@ -180,14 +205,6 @@ const VideoPlayer = ({ src, poster, onError }) => {
         }
     };
 
-    const changeQuality = (levelIndex) => {
-        if (hlsRef.current) {
-            hlsRef.current.currentLevel = levelIndex;
-            setCurrentQuality(levelIndex);
-        }
-        setShowSettings(false);
-    };
-
     const formatTime = (secs) => {
         if (!secs || isNaN(secs)) return '00:00';
         const h = Math.floor(secs / 3600);
@@ -219,19 +236,28 @@ const VideoPlayer = ({ src, poster, onError }) => {
                 playsInline
             />
 
+            {/* Buffering loading overlay */}
+            {isBuffering && (
+                <div className={styles.bufferingOverlay}>
+                    <div className={styles.bufferingSpinner}>
+                        <div className={styles.spinnerRing}></div>
+                    </div>
+                </div>
+            )}
+
             {/* Center play icon on pause */}
-            {!playing && (
+            {!playing && !isBuffering && (
                 <div className={styles.centerPlay} onClick={togglePlay}>
                     <FiPlay size={48} />
                 </div>
             )}
 
-            {/* Skip intro button */}
-            {showSkipIntro && showControls && (
-                <button className={styles.skipIntro} onClick={skipIntro}>
-                    <FiChevronsRight /> Skip Intro
-                </button>
-            )}
+            {/* Keyboard hints */}
+            <div className={styles.keyHints}>
+                <span>Space: Dừng/Phát</span>
+                <span>F: Toàn màn hình</span>
+                <span>← →: ±10s</span>
+            </div>
 
             {/* Controls overlay */}
             <div className={`${styles.controls} ${showControls ? styles.controlsVisible : ''}`}>
@@ -246,16 +272,16 @@ const VideoPlayer = ({ src, poster, onError }) => {
                 <div className={styles.controlsRow}>
                     {/* Left controls */}
                     <div className={styles.controlsLeft}>
-                        <button className={styles.controlBtn} onClick={togglePlay}>
+                        <button className={styles.controlBtn} onClick={togglePlay} title="Space">
                             {playing ? <FiPause size={20} /> : <FiPlay size={20} />}
                         </button>
 
-                        <button className={styles.controlBtn} onClick={() => seek(-10)} title="Rewind 10s">
+                        <button className={styles.controlBtn} onClick={() => seek(-10)} title="← Lùi 10s">
                             <FiSkipBack size={18} />
                             <span className={styles.seekLabel}>10</span>
                         </button>
 
-                        <button className={styles.controlBtn} onClick={() => seek(10)} title="Forward 10s">
+                        <button className={styles.controlBtn} onClick={() => seek(10)} title="→ Tiến 10s">
                             <FiSkipForward size={18} />
                             <span className={styles.seekLabel}>10</span>
                         </button>
@@ -282,38 +308,7 @@ const VideoPlayer = ({ src, poster, onError }) => {
 
                     {/* Right controls */}
                     <div className={styles.controlsRight}>
-                        {/* Settings / Quality */}
-                        <div className={styles.settingsWrapper}>
-                            <button
-                                className={styles.controlBtn}
-                                onClick={() => setShowSettings(!showSettings)}
-                            >
-                                <FiSettings size={18} />
-                            </button>
-
-                            {showSettings && (
-                                <div className={styles.settingsMenu}>
-                                    <div className={styles.settingsTitle}>Chất lượng</div>
-                                    <button
-                                        className={`${styles.qualityOption} ${currentQuality === -1 ? styles.qualityActive : ''}`}
-                                        onClick={() => changeQuality(-1)}
-                                    >
-                                        Auto
-                                    </button>
-                                    {qualities.map(q => (
-                                        <button
-                                            key={q.index}
-                                            className={`${styles.qualityOption} ${currentQuality === q.index ? styles.qualityActive : ''}`}
-                                            onClick={() => changeQuality(q.index)}
-                                        >
-                                            {q.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <button className={styles.controlBtn} onClick={toggleFullscreen}>
+                        <button className={styles.controlBtn} onClick={toggleFullscreen} title="F: Toàn màn hình">
                             {fullscreen ? <FiMinimize size={18} /> : <FiMaximize size={18} />}
                         </button>
                     </div>

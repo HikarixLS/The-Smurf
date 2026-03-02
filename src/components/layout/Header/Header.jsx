@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiSearch, FiUser, FiMenu, FiX, FiChevronDown, FiMonitor } from 'react-icons/fi';
+import { FiUser, FiMenu, FiX, FiChevronDown, FiMonitor } from 'react-icons/fi';
+import SearchBar from '@/components/search/SearchBar/SearchBar';
 import styles from './Header.module.css';
 
 const GENRES = [
@@ -20,8 +21,6 @@ const GENRES = [
   { name: 'Âm Nhạc', slug: 'am-nhac' },
   { name: 'Thể Thao', slug: 'the-thao' },
   { name: 'Tâm Lý', slug: 'tam-ly' },
-  { name: 'Bách Hợp', slug: 'bach-hop' },
-  { name: 'Đam Mỹ', slug: 'dam-my' },
 ];
 
 const COUNTRIES = [
@@ -41,7 +40,6 @@ const COUNTRIES = [
 
 const Header = () => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -49,7 +47,7 @@ const Header = () => {
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -62,15 +60,6 @@ const Header = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
-      setMobileMenuOpen(false);
-    }
-  };
 
   const toggleDropdown = (name) => {
     setActiveDropdown(activeDropdown === name ? null : name);
@@ -148,26 +137,22 @@ const Header = () => {
           </Link>
         </nav>
 
-        {/* Search bar */}
-        <form className={styles.searchBar} onSubmit={handleSearch}>
-          <FiSearch className={styles.searchIcon} />
-          <input
-            type="text"
-            placeholder="Tìm phim, diễn viên..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={styles.searchInput}
-          />
-        </form>
+        {/* Spacer — pushes right group to far right */}
+        <div className={styles.headerSpacer} />
 
-        {/* Actions */}
-        <div className={styles.actions}>
-          <button className={styles.userBtn} onClick={() => navigate('/profile')}>
+        {/* Right group: Search + Account */}
+        <div className={styles.headerRight}>
+          <div className={styles.searchWrapper}>
+            <SearchBar />
+          </div>
+          <button className={styles.userBtn} onClick={() => navigate('/profile')} aria-label="Tài khoản của tôi">
             <FiUser />
           </button>
           <button
             className={styles.mobileMenuBtn}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? 'Đóng menu' : 'Mở menu'}
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <FiX /> : <FiMenu />}
           </button>
@@ -177,15 +162,6 @@ const Header = () => {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className={styles.mobileMenu}>
-          <form className={styles.mobileSearch} onSubmit={handleSearch}>
-            <FiSearch />
-            <input
-              type="text"
-              placeholder="Tìm phim..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </form>
           <Link to="/" className={styles.mobileLink} onClick={() => setMobileMenuOpen(false)}>Trang chủ</Link>
           <Link to="/browse?type=series" className={styles.mobileLink} onClick={() => setMobileMenuOpen(false)}>Phim bộ</Link>
           <Link to="/browse?type=single" className={styles.mobileLink} onClick={() => setMobileMenuOpen(false)}>Phim lẻ</Link>

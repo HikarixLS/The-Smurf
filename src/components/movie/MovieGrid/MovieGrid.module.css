@@ -23,16 +23,89 @@
   color: var(--color-text-secondary);
 }
 
-.loadMore {
+/* Pagination */
+.pagination {
   display: flex;
+  align-items: center;
   justify-content: center;
-  margin: var(--spacing-xl) 0;
+  gap: 6px;
+  margin: 32px 0 16px;
+  flex-wrap: wrap;
+}
+
+.pageBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pageBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.pageBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.pageActive {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.5);
+  color: var(--color-accent, #667eea);
+  font-weight: 600;
+}
+
+.pageActive:hover {
+  background: rgba(102, 126, 234, 0.3);
+}
+
+.navBtn {
+  background: transparent;
+  border-color: transparent;
+}
+
+.navBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.ellipsis {
+  color: rgba(255, 255, 255, 0.3);
+  padding: 0 4px;
+  font-size: 16px;
+  user-select: none;
 }
 
 @media (max-width: 640px) {
   .movieGrid {
     grid-template-columns: repeat(2, 1fr);
     gap: var(--spacing-md);
+  }
+
+  .pagination {
+    gap: 4px;
+    margin: 24px 0 12px;
+  }
+
+  .pageBtn {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+    font-size: 13px;
+    border-radius: 8px;
   }
 }
 

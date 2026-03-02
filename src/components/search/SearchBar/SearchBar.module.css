@@ -1,6 +1,6 @@
 .searchBar {
   position: relative;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: 0;
 }
 
 .inputContainer {
@@ -10,14 +10,13 @@
 
 .searchInput {
   width: 100%;
-  padding: var(--spacing-md) var(--spacing-xl);
-  padding-left: 50px;
+  padding: 9px 40px 9px 42px;
   background: var(--glass-bg-medium);
   backdrop-filter: blur(var(--blur-medium));
   -webkit-backdrop-filter: blur(var(--blur-medium));
-  border: 2px solid var(--glass-border);
+  border: 1.5px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  font-size: var(--font-size-md);
+  font-size: 14px;
   color: var(--color-text-primary);
   transition: all var(--transition-normal);
 }
@@ -29,16 +28,17 @@
 }
 
 .searchInput::placeholder {
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .searchIcon {
   position: absolute;
-  left: var(--spacing-md);
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--color-text-secondary);
+  color: #ffffff !important;
   pointer-events: none;
+  flex-shrink: 0;
 }
 
 .clearButton {
@@ -56,6 +56,7 @@
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: all var(--transition-fast);
+  border: none;
 }
 
 .clearButton:hover {
@@ -68,40 +69,97 @@
   top: calc(100% + var(--spacing-sm));
   left: 0;
   right: 0;
-  background: var(--glass-bg-heavy);
-  backdrop-filter: blur(var(--blur-heavy));
-  -webkit-backdrop-filter: blur(var(--blur-heavy));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
+  background: rgba(20, 20, 35, 0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
   overflow: hidden;
   z-index: 100;
-  max-height: 400px;
+  max-height: 500px;
   overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 .autocompleteItem {
-  padding: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
   cursor: pointer;
-  transition: background var(--transition-fast);
-  border-bottom: 1px solid var(--glass-border);
+  transition: background 0.15s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
-.autocompleteItem:last-child {
+.autocompleteItem:last-of-type {
   border-bottom: none;
 }
 
 .autocompleteItem:hover {
-  background: var(--glass-bg-medium);
+  background: rgba(102, 126, 234, 0.08);
+}
+
+.itemThumb {
+  width: 44px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.itemContent {
+  flex: 1;
+  min-width: 0;
 }
 
 .itemTitle {
   font-weight: 600;
-  margin-bottom: var(--spacing-xs);
+  font-size: 14px;
+  color: var(--color-text-primary, #fff);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemOrigin {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
 }
 
 .itemMeta {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.itemBadge {
+  padding: 1px 6px;
+  background: rgba(102, 126, 234, 0.12);
+  border-radius: 4px;
+  font-size: 11px;
+  color: rgba(102, 126, 234, 0.9);
+}
+
+.viewAll {
+  padding: 12px 14px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-accent, #667eea);
+  cursor: pointer;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 0.15s ease;
+}
+
+.viewAll:hover {
+  background: rgba(102, 126, 234, 0.06);
 }
 
 .noResults {
@@ -115,5 +173,24 @@
     padding: var(--spacing-sm) var(--spacing-md);
     padding-left: 40px;
     font-size: var(--font-size-sm);
+  }
+
+  .autocomplete {
+    border-radius: 12px;
+    max-height: 400px;
+  }
+
+  .autocompleteItem {
+    padding: 8px 12px;
+    gap: 10px;
+  }
+
+  .itemThumb {
+    width: 38px;
+    height: 56px;
+  }
+
+  .itemTitle {
+    font-size: 13px;
   }
 }
