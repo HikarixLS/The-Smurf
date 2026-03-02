@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiUser, FiHeart, FiClock, FiLogOut, FiBookmark } from 'react-icons/fi';
 import { ref, onValue } from 'firebase/database';
@@ -15,15 +15,32 @@ const Profile = () => {
   const [favorites, setFavorites] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
   const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Real-time listeners instead of one-shot get() — instantly reflects adds/removes
+  // Track how many of the 3 listeners have fired at least once
+  const loadedRef = useRef(0);
+  const markLoaded = () => {
+    loadedRef.current += 1;
+    if (loadedRef.current >= 3) setLoading(false);
+  };
+
+  // Real-time listeners — instantly reflects adds/removes from any page
   useEffect(() => {
-    if (!user || !database) return;
+    if (!user || !database) {
+      setLoading(false);
+      return;
+    }
+
+    loadedRef.current = 0;
+    setLoading(true);
 
     const parse = (snapshot) => {
       if (!snapshot.exists()) return [];
       const items = [];
-      snapshot.forEach(child => items.push(child.val()));
+      snapshot.forEach(child => {
+        const val = child.val();
+        if (val) items.push(val);
+      });
       return items;
     };
 
@@ -33,12 +50,15 @@ const Profile = () => {
 
     const unsubFav = onValue(favRef, snap => {
       setFavorites(parse(snap).sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)));
+      markLoaded();
     });
     const unsubWl = onValue(wlRef, snap => {
       setWatchlist(parse(snap).sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)));
+      markLoaded();
     });
     const unsubHist = onValue(histRef, snap => {
       setHistory(parse(snap).sort((a, b) => (b.watchedAt || 0) - (a.watchedAt || 0)));
+      markLoaded();
     });
 
     return () => {
@@ -58,9 +78,9 @@ const Profile = () => {
   };
 
   const stats = [
-    { icon: <FiHeart />, label: 'Yêu thích', value: favorites.length.toString() },
-    { icon: <FiBookmark />, label: 'Watchlist', value: watchlist.length.toString() },
-    { icon: <FiClock />, label: 'Đã xem', value: history.length.toString() },
+    { icon: <FiHeart />, label: 'Yêu thích', value: loading ? '—' : favorites.length.toString() },
+    { icon: <FiBookmark />, label: 'Watchlist', value: loading ? '—' : watchlist.length.toString() },
+    { icon: <FiClock />, label: 'Lịch sử xem', value: loading ? '—' : history.length.toString() },
   ];
 
   const renderMovieList = (items) => {
@@ -88,6 +108,10 @@ const Profile = () => {
       </div>
     );
   };
+
+  const sectionCount = (count) => !loading
+    ? <span className={styles.sectionCount}>• {count} phim</span>
+    : null;
 
   return (
     <>
@@ -124,22 +148,28 @@ const Profile = () => {
           </div>
 
           <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>❤️ Yêu thích</h2>
-            {favorites.length > 0 ? renderMovieList(favorites) : (
+            <h2 className={styles.sectionTitle}>❤️ Yêu thích {sectionCount(favorites.length)}</h2>
+            {loading ? (
+              <p className={styles.emptyState}>Đang tải...</p>
+            ) : favorites.length > 0 ? renderMovieList(favorites) : (
               <p className={styles.emptyState}>Chưa có phim yêu thích. Nhấn ❤️ trên trang chi tiết phim!</p>
             )}
           </div>
 
           <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>🔖 Watchlist</h2>
-            {watchlist.length > 0 ? renderMovieList(watchlist) : (
+            <h2 className={styles.sectionTitle}>🔖 Watchlist {sectionCount(watchlist.length)}</h2>
+            {loading ? (
+              <p className={styles.emptyState}>Đang tải...</p>
+            ) : watchlist.length > 0 ? renderMovieList(watchlist) : (
               <p className={styles.emptyState}>Chưa có phim trong watchlist. Nhấn 🔖 trên trang chi tiết phim!</p>
             )}
           </div>
 
           <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>🕐 Lịch sử xem</h2>
-            {history.length > 0 ? renderMovieList(history) : (
+            <h2 className={styles.sectionTitle}>🕐 Lịch sử xem {sectionCount(history.length)}</h2>
+            {loading ? (
+              <p className={styles.emptyState}>Đang tải...</p>
+            ) : history.length > 0 ? renderMovieList(history) : (
               <p className={styles.emptyState}>Chưa xem phim nào. Khám phá ngay!</p>
             )}
           </div>
