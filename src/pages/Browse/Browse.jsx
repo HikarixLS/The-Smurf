@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FiFilter, FiX, FiArrowDown, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import Header from '@/components/layout/Header/Header';
@@ -7,23 +7,20 @@ import MovieGrid from '@/components/movie/MovieGrid/MovieGrid';
 import { movieService } from '@/services/api/movieService';
 import styles from './Browse.module.css';
 
+const ITEMS_PER_PAGE = 16;
+
 const TYPES = [
   { name: 'Tất cả', value: '' },
   { name: 'Phim lẻ', value: 'single' },
   { name: 'Phim bộ', value: 'series' },
-  { name: 'Phim chiếu rạp', value: 'hoathinh' },
+  { name: 'Hoạt hình', value: 'hoathinh' },
+  { name: 'TV Shows', value: 'tvshows' },
 ];
 
 const SORT_OPTIONS = [
   { name: 'Mới cập nhật', value: 'modified.time' },
   { name: 'Năm sản xuất', value: 'year' },
   { name: 'Tên phim', value: '_id' },
-];
-
-// Extra genres to inject if not already present
-const EXTRA_GENRES = [
-  { name: 'Bách Hợp', slug: 'bach-hop' },
-  { name: 'Đam Mỹ', slug: 'dam-my' },
 ];
 
 // Fallback year list — always generate recent 25 years
@@ -38,9 +35,8 @@ const Browse = () => {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Collapsible filter sections
   const [expandedSections, setExpandedSections] = useState({
@@ -61,6 +57,7 @@ const Browse = () => {
   const country = searchParams.get('country') || '';
   const year = searchParams.get('year') || '';
   const sort = searchParams.get('sort') || 'modified.time';
+  const page = parseInt(searchParams.get('page') || '1', 10);
 
   // Auto-expand sections with active filters
   useEffect(() => {
@@ -84,13 +81,7 @@ const Browse = () => {
         ]);
 
         if (catRes.status === 'fulfilled') {
-          let items = catRes.value?.data?.items || catRes.value?.items || [];
-          // Inject extra genres if not present
-          EXTRA_GENRES.forEach(extra => {
-            if (!items.find(g => g.slug === extra.slug)) {
-              items = [...items, extra];
-            }
-          });
+          const items = catRes.value?.data?.items || catRes.value?.items || [];
           setGenres(items);
         }
         if (countryRes.status === 'fulfilled') {
@@ -98,10 +89,8 @@ const Browse = () => {
           setCountries(items);
         }
         if (yearRes.status === 'fulfilled') {
-          // Try multiple parsing strategies for API response
           const raw = yearRes.value;
           let items = raw?.data?.items || raw?.items || raw?.data || [];
-          // If it's directly an array of numbers
           if (Array.isArray(items) && items.length > 0) {
             const normalizedYears = items.map(y => {
               if (typeof y === 'number' || typeof y === 'string') {
@@ -127,59 +116,49 @@ const Browse = () => {
     fetchFilters();
   }, []);
 
-  useEffect(() => {
-    setMovies([]);
-    setPage(1);
-    fetchMovies(1);
-  }, [type, genre, country, year, sort]);
-
-  const fetchMovies = async (p) => {
+  // Fetch movies when filters or page change
+  const fetchMovies = useCallback(async (p) => {
     setLoading(true);
     setError(null);
+    setMovies([]); // Clear old results immediately when fetching new data
     try {
       let response;
-
-      // Priority: genre > country > year > type
       if (genre) {
-        response = await movieService.getMoviesByCategory(genre, p, sort);
+        response = await movieService.getMoviesByCategory(genre, p, sort, ITEMS_PER_PAGE, type);
       } else if (country) {
-        response = await movieService.getMoviesByCountry(country, p, sort);
+        response = await movieService.getMoviesByCountry(country, p, sort, ITEMS_PER_PAGE, type);
       } else if (year) {
-        response = await movieService.getMoviesByYear(year, p, sort);
+        response = await movieService.getMoviesByYear(year, p, sort, ITEMS_PER_PAGE, type);
       } else {
-        response = await movieService.getMovies(p, { type }, sort);
+        response = await movieService.getMovies(p, { type, limit: ITEMS_PER_PAGE }, sort);
       }
 
-      if (response?.data?.items) {
-        let items = response.data.items;
+      const items = response?.data?.items ?? [];
+      setMovies(items);
 
-        // Client-side year filter when using genre/country endpoint
-        if (year && (genre || country)) {
-          items = items.filter(m => m.year && m.year.toString() === year);
-        }
-
-        if (p === 1) {
-          setMovies(items);
-        } else {
-          setMovies(prev => [...prev, ...items]);
-        }
-        const pagination = response.data.params?.pagination;
-        if (pagination) {
-          setHasMore(pagination.currentPage < pagination.totalPages);
-        }
+      const pagination = response?.data?.params?.pagination;
+      if (pagination) {
+        setTotalPages(pagination.totalPages || Math.ceil(pagination.totalItems / (pagination.totalItemsPerPage || ITEMS_PER_PAGE)));
+      } else {
+        setTotalPages(1);
       }
     } catch (err) {
       setError('Lỗi tải danh sách phim');
     } finally {
       setLoading(false);
     }
-  };
+  }, [type, genre, country, year, sort]);
 
-  const loadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchMovies(nextPage);
-  };
+  useEffect(() => {
+    fetchMovies(page);
+  }, [fetchMovies, page]);
+
+  const goToPage = useCallback((newPage) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', newPage.toString());
+    setSearchParams(params);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [searchParams, setSearchParams]);
 
   // Allow combining filters (no mutual exclusion)
   const updateFilter = (key, value) => {
@@ -189,6 +168,8 @@ const Browse = () => {
     } else {
       params.delete(key);
     }
+    // Reset to page 1 when filters change
+    params.delete('page');
     setSearchParams(params);
   };
 
@@ -204,6 +185,10 @@ const Browse = () => {
 
   const getTitle = () => {
     const parts = [];
+    if (type) {
+      const found = TYPES.find(t => t.value === type);
+      if (found) parts.push(found.name);
+    }
     if (genre) {
       const found = genres.find(g => g.slug === genre);
       parts.push(found ? found.name : 'Thể loại');
@@ -213,8 +198,6 @@ const Browse = () => {
       parts.push(found ? found.name : 'Quốc gia');
     }
     if (year) parts.push(`Năm ${year}`);
-    if (type === 'single') parts.push('Phim lẻ');
-    if (type === 'series') parts.push('Phim bộ');
     return parts.length > 0 ? parts.join(' • ') : 'Danh mục phim';
   };
 
@@ -327,7 +310,7 @@ const Browse = () => {
                 )}
               </div>
 
-              {/* Year filter - always shows fallback years */}
+              {/* Year filter */}
               <div className={styles.filterGroup}>
                 <button className={styles.filterLabel} onClick={() => toggleSection('year')}>
                   Năm {year && <span className={styles.activeIndicator}>•</span>}
@@ -366,8 +349,9 @@ const Browse = () => {
             movies={movies}
             loading={loading}
             error={error}
-            hasMore={hasMore}
-            onLoadMore={loadMore}
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={goToPage}
           />
         </div>
       </main>
@@ -377,4 +361,3 @@ const Browse = () => {
 };
 
 export default Browse;
-
