@@ -117,6 +117,8 @@ const Browse = () => {
   }, []);
 
   // Fetch movies when filters or page change
+  // Priority: genre > country > year > type-only (matching API routing)
+  // All endpoints support cross-filtering per API docs
   const fetchMovies = useCallback(async (p) => {
     setLoading(true);
     setError(null);
@@ -124,12 +126,16 @@ const Browse = () => {
     try {
       let response;
       if (genre) {
-        response = await movieService.getMoviesByCategory(genre, p, sort, ITEMS_PER_PAGE, type);
+        // /v1/api/the-loai/[slug] supports: type, country, year as cross-filters
+        response = await movieService.getMoviesByCategory(genre, p, sort, ITEMS_PER_PAGE, { type, country, year });
       } else if (country) {
-        response = await movieService.getMoviesByCountry(country, p, sort, ITEMS_PER_PAGE, type);
+        // /v1/api/quoc-gia/[slug] supports: type, category, year as cross-filters
+        response = await movieService.getMoviesByCountry(country, p, sort, ITEMS_PER_PAGE, { type, year });
       } else if (year) {
-        response = await movieService.getMoviesByYear(year, p, sort, ITEMS_PER_PAGE, type);
+        // /v1/api/nam-phat-hanh/[year] supports: type, category, country as cross-filters
+        response = await movieService.getMoviesByYear(year, p, sort, ITEMS_PER_PAGE, { type, country });
       } else {
+        // /v1/api/danh-sach/[slug] — type only (phim-bo, phim-le, hoat-hinh, tv-shows)
         response = await movieService.getMovies(p, { type, limit: ITEMS_PER_PAGE }, sort);
       }
 

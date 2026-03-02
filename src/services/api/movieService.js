@@ -165,14 +165,18 @@ export const movieService = {
   },
 
   /**
-   * Get movies by category with sorting
+  /**
+   * Get movies by category with sorting and optional cross-filters
+   * Supports: type, country, year (per API docs)
    */
-  getMoviesByCategory: async (categorySlug, page = 1, sortField = '', limit = 16, type = '') => {
+  getMoviesByCategory: async (categorySlug, page = 1, sortField = '', limit = 16, filters = {}) => {
     try {
       const params = new URLSearchParams({ page: page.toString() });
       if (sortField) params.append('sort_field', sortField);
       if (limit) params.append('limit', limit.toString());
-      if (type) params.append('type', type);
+      if (filters.type) params.append('type', filters.type);
+      if (filters.country) params.append('country', filters.country);
+      if (filters.year) params.append('year', filters.year);
       const response = await apiClient.get(`${ENDPOINTS.CATEGORY}/${categorySlug}?${params.toString()}`);
       return response;
     } catch (error) {
@@ -182,14 +186,18 @@ export const movieService = {
   },
 
   /**
-   * Get movies by country with sorting
+  /**
+   * Get movies by country with sorting and optional cross-filters
+   * Supports: type, category, year (per API docs)
    */
-  getMoviesByCountry: async (countrySlug, page = 1, sortField = '', limit = 16, type = '') => {
+  getMoviesByCountry: async (countrySlug, page = 1, sortField = '', limit = 16, filters = {}) => {
     try {
       const params = new URLSearchParams({ page: page.toString() });
       if (sortField) params.append('sort_field', sortField);
       if (limit) params.append('limit', limit.toString());
-      if (type) params.append('type', type);
+      if (filters.type) params.append('type', filters.type);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.year) params.append('year', filters.year);
       const response = await apiClient.get(`${ENDPOINTS.COUNTRY}/${countrySlug}?${params.toString()}`);
       return response;
     } catch (error) {
@@ -199,14 +207,18 @@ export const movieService = {
   },
 
   /**
-   * Get movies by year with sorting
+  /**
+   * Get movies by year with sorting and optional cross-filters
+   * Supports: type, category, country (per API docs)
    */
-  getMoviesByYear: async (year, page = 1, sortField = '', limit = 16, type = '') => {
+  getMoviesByYear: async (year, page = 1, sortField = '', limit = 16, filters = {}) => {
     try {
       const params = new URLSearchParams({ page: page.toString() });
       if (sortField) params.append('sort_field', sortField);
       if (limit) params.append('limit', limit.toString());
-      if (type) params.append('type', type);
+      if (filters.type) params.append('type', filters.type);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.country) params.append('country', filters.country);
       const response = await apiClient.get(`${ENDPOINTS.YEAR}/${year}?${params.toString()}`);
       return response;
     } catch (error) {
