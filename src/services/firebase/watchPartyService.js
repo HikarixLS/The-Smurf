@@ -213,6 +213,15 @@ export const watchPartyService = {
         });
     },
 
+    // Self-promote to Host (called by oldest viewer when no host is found)
+    promoteToHost: async (roomId) => {
+        if (!database) return;
+        const session = getSession();
+        const roomRef = ref(database, `${ROOMS_REF}/${roomId}`);
+        await update(roomRef, { hostId: session.id, hostName: session.name });
+        await update(ref(database, `${ROOMS_REF}/${roomId}/members/${session.id}`), { isHost: true });
+    },
+
     // Update room status
     updateRoomStatus: async (roomId, status) => {
         if (!database) return;

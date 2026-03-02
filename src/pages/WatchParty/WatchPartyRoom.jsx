@@ -12,10 +12,8 @@ import { movieService } from '@/services/api/movieService';
 import { useAuth } from '@/services/firebase/AuthContext';
 import styles from './WatchPartyRoom.module.css';
 
-// Sync constants
 const SYNC_THRESHOLD = 3;    // seconds — max drift before force-seek
 const HEARTBEAT_MS = 8000; // host broadcasts position every 8s (fallback only)
-// play/pause/seek are synced immediately via direct calls
 
 const WatchPartyRoom = () => {
     const { roomId } = useParams();
@@ -34,29 +32,29 @@ const WatchPartyRoom = () => {
     const [nickname, setNickname] = useState('');
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
+    const [volume, setVolume] = useState(0.8);   // 0–1
+    const [showVolume, setShowVolume] = useState(false);  // volume slider popup
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isBuffering, setIsBuffering] = useState(false);
     const [videoReady, setVideoReady] = useState(false);
     const [hlsFailed, setHlsFailed] = useState(false);
-    // Buffering-wait UI: set when host detects a viewer is buffering
-    const [waitingFor, setWaitingFor] = useState(null); // string: viewer name, or null
+    const [waitingFor, setWaitingFor] = useState(null);  // buffering viewer name
 
-    // ── Refs (Flag pattern — no React re-render needed) ──
+    // ── Refs ──
     const videoRef = useRef(null);
     const hlsRef = useRef(null);
     const chatEndRef = useRef(null);
-    const isSyncing = useRef(false);  // true while doing programmatic seek/play
+    const isSyncing = useRef(false);
     const heartbeatRef = useRef(null);
     const prevMembersRef = useRef(null);
-    const roomRef = useRef(null);   // always current room (avoids stale closures)
-    const movieLoadedRef = useRef(false); // guard against repeated getMovieDetail calls
+    const roomRef = useRef(null);
+    const movieLoadedRef = useRef(false);
+    const promotingRef = useRef(false);   // prevent duplicate promoteToHost calls
 
     const session = watchPartyService.getSession();
-    // Derive isHost from live room state
     const isHost = room?.hostId === session.id;
 
-    // Keep roomRef current without extra renders
     useEffect(() => { roomRef.current = room; }, [room]);
 
     // ── Init nickname ──
@@ -76,6 +74,25 @@ const WatchPartyRoom = () => {
         const unsubRoom = watchPartyService.onRoomUpdate(roomId, (roomData) => {
             if (!roomData) { navigate('/watch-party'); return; }
 
+            // ── Detect member join/leave ──
+            if (prevMembersRef.current) {
+                const prev = new Set(Object.keys(prevMembersRef.current));
+                const current = roomData.members ? Object.keys(roomData.members) : [];
+                current.forEach(key => {
+                    if (!prev.has(key) && key !== session.id) {
+                        // Someone new joined — already announced by themselves via sendMessage
+                        // We just let the system message show
+                    }
+                });
+                prev.forEach(key => {
+                    if (!current.includes(key) && key !== session.id) {
+                        const left = prevMembersRef.current[key];
+                        if (left?.name) {
+                            watchPartyService.sendMessage(roomId, `👋 ${left.name} đã rời phòng`);
+                        }
+                    }
+                });
+            }
             prevMembersRef.current = roomData.members || {};
             setRoom(roomData);
 
@@ -84,13 +101,28 @@ const WatchPartyRoom = () => {
             }
             setLoading(false);
 
-            // Fetch movie detail ONCE — use ref, NOT state, to guard
-            // (the closure captures movie=null forever; using !movie here causes 190 API calls/min)
+            // ── Auto Host Promotion (host closed tab / network drop) ──
+            if (roomData.members) {
+                const memberList = Object.values(roomData.members);
+                const currentHost = memberList.find(m => m.isHost);
+
+                if (!currentHost && memberList.length > 0 && !promotingRef.current) {
+                    const oldest = [...memberList].sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0))[0];
+                    if (oldest.id === session.id) {
+                        promotingRef.current = true;
+                        watchPartyService.promoteToHost(roomId)
+                            .then(() => watchPartyService.sendMessage(roomId, `👑 ${session.name} đã tự động trở thành Host mới`))
+                            .finally(() => { promotingRef.current = false; });
+                    }
+                }
+            }
+
+            // ── Fetch movie detail ONCE (use ref, not state — stale closure guard) ──
             if (!movieLoadedRef.current && roomData.movieSlug) {
-                movieLoadedRef.current = true; // set BEFORE async to prevent race
+                movieLoadedRef.current = true;
                 movieService.getMovieDetail(roomData.movieSlug).then(res => {
                     if (res?.data?.item) setMovie(res.data.item);
-                    else movieLoadedRef.current = false; // allow retry on API failure
+                    else movieLoadedRef.current = false;
                 }).catch(() => { movieLoadedRef.current = false; });
             }
 
@@ -105,7 +137,6 @@ const WatchPartyRoom = () => {
                     m => m.id !== session.id && m.isBuffering
                 );
                 if (bufferingMember) {
-                    // Auto-pause host video
                     if (videoRef.current && !videoRef.current.paused) {
                         isSyncing.current = true;
                         videoRef.current.pause();
@@ -113,15 +144,16 @@ const WatchPartyRoom = () => {
                     }
                     setWaitingFor(bufferingMember.name);
                 } else {
-                    // All viewers ready — resume if we were waiting
-                    if (waitingFor !== null) {
-                        setWaitingFor(null);
-                        if (videoRef.current && videoRef.current.paused && isPlaying) {
-                            isSyncing.current = true;
-                            videoRef.current.play().catch(() => { });
-                            setTimeout(() => { isSyncing.current = false; }, 1000);
+                    setWaitingFor(prev => {
+                        if (prev !== null) {
+                            if (videoRef.current && videoRef.current.paused) {
+                                isSyncing.current = true;
+                                videoRef.current.play().catch(() => { });
+                                setTimeout(() => { isSyncing.current = false; }, 1000);
+                            }
                         }
-                    }
+                        return null;
+                    });
                 }
             }
         });
@@ -131,8 +163,6 @@ const WatchPartyRoom = () => {
         return () => {
             unsubRoom();
             unsubMsgs();
-            const name = user?.displayName || session.name;
-            watchPartyService.sendMessage(roomId, `👋 ${name} đã rời phòng`);
             watchPartyService.leaveRoom(roomId);
         };
     }, [roomId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -170,11 +200,7 @@ const WatchPartyRoom = () => {
                 setVideoReady(true);
                 const pb = roomRef.current?.playback;
                 if (pb?.isPlaying) {
-                    video.play().catch(() => {
-                        video.muted = true;
-                        setIsMuted(true);
-                        video.play().catch(() => { });
-                    });
+                    video.play().catch(() => { video.muted = true; setIsMuted(true); video.play().catch(() => { }); });
                 }
             });
 
@@ -216,10 +242,9 @@ const WatchPartyRoom = () => {
         };
     }, [movie, currentEpisode, hlsFailed]);
 
-    // ── Host heartbeat — 8s fallback drift correction ──
+    // ── Host heartbeat ──
     useEffect(() => {
         if (!room || room.hostId !== session.id) return;
-
         heartbeatRef.current = setInterval(() => {
             if (!videoRef.current || isSyncing.current) return;
             watchPartyService.syncPlayback(roomId, {
@@ -228,7 +253,6 @@ const WatchPartyRoom = () => {
                 episode: currentEpisode,
             });
         }, HEARTBEAT_MS);
-
         return () => clearInterval(heartbeatRef.current);
     }, [room, currentEpisode, roomId]);
 
@@ -237,7 +261,6 @@ const WatchPartyRoom = () => {
         const video = videoRef.current;
         if (!video || isSyncing.current || roomRef.current?.hostId === session.id) return;
 
-        // Estimate host's current time accounting for network latency
         const estimated = (() => {
             if (!playback.isPlaying || !playback.updatedAt) return playback.currentTime || 0;
             const elapsed = (Date.now() - playback.updatedAt) / 1000;
@@ -245,7 +268,6 @@ const WatchPartyRoom = () => {
         })();
 
         const drift = Math.abs(video.currentTime - estimated);
-
         isSyncing.current = true;
 
         if (drift > SYNC_THRESHOLD) video.currentTime = estimated;
@@ -266,65 +288,49 @@ const WatchPartyRoom = () => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    // Close volume popup on outside click
+    useEffect(() => {
+        if (!showVolume) return;
+        const handler = () => setShowVolume(false);
+        const timer = setTimeout(() => document.addEventListener('click', handler), 100);
+        return () => { clearTimeout(timer); document.removeEventListener('click', handler); };
+    }, [showVolume]);
+
     // ── Video event handlers ──
-    // CRITICAL: Non-host events must NEVER write to Firebase
-    const onTimeUpdate = () => {
-        if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
-    };
-    const onDurationChange = () => {
-        if (videoRef.current) setDuration(videoRef.current.duration);
-    };
+    const onTimeUpdate = () => { if (videoRef.current) setCurrentTime(videoRef.current.currentTime); };
+    const onDurationChange = () => { if (videoRef.current) setDuration(videoRef.current.duration); };
     const onPlay = () => {
-        if (isSyncing.current) return; // programmatic — skip
-        setIsPlaying(true);
-        // Non-host: if room says paused, force-pause ourselves (don't write Firebase)
-        if (roomRef.current && roomRef.current.hostId !== session.id) {
-            if (!roomRef.current.playback?.isPlaying) {
-                videoRef.current?.pause();
-            }
-        }
-        // Note: host fires syncPlayback in handlePlayPause, NOT here
-    };
-    const onPause = () => {
         if (isSyncing.current) return;
-        setIsPlaying(false);
-        // Host does NOT sync here — syncPlayback is fired in handlePlayPause
+        setIsPlaying(true);
+        // Non-host: if room says paused, force-pause (don't write Firebase)
+        if (roomRef.current && roomRef.current.hostId !== session.id) {
+            if (!roomRef.current.playback?.isPlaying) videoRef.current?.pause();
+        }
     };
+    const onPause = () => { if (!isSyncing.current) setIsPlaying(false); };
     const onWaiting = () => {
         setIsBuffering(true);
-        // Report buffering to Firebase so host can pause
         watchPartyService.reportBuffering(roomId, true);
     };
     const onCanPlay = () => {
         setIsBuffering(false);
-        // Report ready
         watchPartyService.reportBuffering(roomId, false);
     };
 
     // ── Controls ──
-
-    // Only host can play/pause
     const handlePlayPause = useCallback(() => {
         const video = videoRef.current;
         if (!video || !videoReady || !isHost) return;
-
         isSyncing.current = true;
 
         if (video.paused) {
-            video.play().catch(() => {
-                video.muted = true; setIsMuted(true);
-                video.play().catch(() => { });
-            });
-            watchPartyService.syncPlayback(roomId, {
-                currentTime: video.currentTime, isPlaying: true, episode: currentEpisode,
-            });
+            video.play().catch(() => { video.muted = true; setIsMuted(true); video.play().catch(() => { }); });
+            watchPartyService.syncPlayback(roomId, { currentTime: video.currentTime, isPlaying: true, episode: currentEpisode });
             watchPartyService.updateRoomStatus(roomId, 'playing');
             watchPartyService.sendMessage(roomId, '▶️ Host đã bấm phát');
         } else {
             video.pause();
-            watchPartyService.syncPlayback(roomId, {
-                currentTime: video.currentTime, isPlaying: false, episode: currentEpisode,
-            });
+            watchPartyService.syncPlayback(roomId, { currentTime: video.currentTime, isPlaying: false, episode: currentEpisode });
             watchPartyService.updateRoomStatus(roomId, 'paused');
             watchPartyService.sendMessage(roomId, '⏸️ Host đã tạm dừng');
         }
@@ -332,22 +338,35 @@ const WatchPartyRoom = () => {
         setTimeout(() => { isSyncing.current = false; }, 1000);
     }, [room, currentEpisode, roomId, videoReady, isHost]);
 
-    // Only host can seek
     const handleSeek = (e) => {
         const video = videoRef.current;
         if (!video || !isHost) return;
         const rect = e.currentTarget.getBoundingClientRect();
         const newTime = ((e.clientX - rect.left) / rect.width) * duration;
         video.currentTime = newTime;
-        watchPartyService.syncPlayback(roomId, {
-            currentTime: newTime, isPlaying: !video.paused, episode: currentEpisode,
-        });
+        watchPartyService.syncPlayback(roomId, { currentTime: newTime, isPlaying: !video.paused, episode: currentEpisode });
     };
 
-    const handleToggleMute = () => {
+    const handleVolumeChange = (e) => {
+        const val = parseFloat(e.target.value);
+        setVolume(val);
+        if (videoRef.current) {
+            videoRef.current.volume = val;
+            videoRef.current.muted = val === 0;
+            setIsMuted(val === 0);
+        }
+    };
+
+    const handleToggleMute = (e) => {
+        e.stopPropagation();
         if (!videoRef.current) return;
-        videoRef.current.muted = !videoRef.current.muted;
-        setIsMuted(videoRef.current.muted);
+        const newMuted = !videoRef.current.muted;
+        videoRef.current.muted = newMuted;
+        setIsMuted(newMuted);
+        if (!newMuted && volume === 0) {
+            setVolume(0.5);
+            videoRef.current.volume = 0.5;
+        }
     };
 
     const handleFullscreen = () => {
@@ -358,9 +377,10 @@ const WatchPartyRoom = () => {
 
     const handleSendMessage = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim()) return;
-        await watchPartyService.sendMessage(roomId, newMessage.trim());
-        setNewMessage('');
+        const text = newMessage.trim();
+        if (!text) return;
+        setNewMessage(''); // clear immediately for better UX
+        await watchPartyService.sendMessage(roomId, text);
     };
 
     const handleEpisodeChange = async (epIdx) => {
@@ -385,7 +405,6 @@ const WatchPartyRoom = () => {
         if (room) watchPartyService.joinRoom(roomId);
     };
 
-    // ── Helpers ──
     const fmt = (s) => {
         if (!s || isNaN(s)) return '0:00';
         return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
@@ -418,9 +437,14 @@ const WatchPartyRoom = () => {
                                 <span className={`${styles.statusDot} ${styles[room?.status || 'waiting']}`} />
                                 {room?.movieOriginName || room?.movieName}
                             </div>
-                            <button className={styles.copyBtn} onClick={handleCopyLink}>
-                                {copied ? <><FiCheck /> Đã copy</> : <><FiCopy /> Chia sẻ</>}
-                            </button>
+                            <div className={styles.topBarRight}>
+                                <span className={styles.viewerBadge}>
+                                    <FiUsers size={13} /> {members.length} người xem
+                                </span>
+                                <button className={styles.copyBtn} onClick={handleCopyLink}>
+                                    {copied ? <><FiCheck /> Đã copy</> : <><FiCopy /> Chia sẻ</>}
+                                </button>
+                            </div>
                         </div>
 
                         {/* Video player */}
@@ -451,18 +475,16 @@ const WatchPartyRoom = () => {
                                 </div>
                             )}
 
-                            {/* Buffering overlay */}
                             {isBuffering && hasHls && (
                                 <div className={styles.bufferOverlay}>
                                     <div className={styles.spinner} />
                                 </div>
                             )}
 
-                            {/* Host waiting overlay — shown while a viewer is buffering */}
                             {isHost && waitingFor && (
                                 <div className={styles.bufferOverlay}>
                                     <div className={styles.spinner} />
-                                    <p style={{ marginTop: 12, color: '#fff', fontSize: 14 }}>
+                                    <p className={styles.waitingText}>
                                         ⏳ Đang chờ <strong>{waitingFor}</strong> tải phim...
                                     </p>
                                 </div>
@@ -483,25 +505,44 @@ const WatchPartyRoom = () => {
                                         {!videoReady ? ' Đang tải...' : isPlaying ? ' Tạm dừng' : ' Phát'}
                                     </button>
                                     {!isHost && (
-                                        <span className={styles.syncLabel}>
-                                            🔄 Đồng bộ với {room?.hostName}
-                                        </span>
+                                        <span className={styles.syncLabel}>🔄 Đồng bộ với {room?.hostName}</span>
                                     )}
-                                    <button className={styles.iconBtn} onClick={handleToggleMute}>
-                                        {isMuted ? <FiVolumeX /> : <FiVolume2 />}
-                                    </button>
-                                    <span className={styles.timeDisplay}>
-                                        {fmt(currentTime)} / {fmt(duration)}
-                                    </span>
+
+                                    {/* Volume control with slider */}
+                                    <div className={styles.volumeWrap} onClick={e => e.stopPropagation()}>
+                                        <button
+                                            className={styles.iconBtn}
+                                            onClick={(e) => { handleToggleMute(e); setShowVolume(v => !v); }}
+                                            title={isMuted ? 'Bật âm thanh' : 'Tắt tiếng'}
+                                        >
+                                            {isMuted || volume === 0 ? <FiVolumeX /> : <FiVolume2 />}
+                                        </button>
+                                        {showVolume && (
+                                            <div className={styles.volumePopup}>
+                                                <input
+                                                    type="range"
+                                                    min="0" max="1" step="0.05"
+                                                    value={isMuted ? 0 : volume}
+                                                    onChange={handleVolumeChange}
+                                                    className={styles.volumeSlider}
+                                                    orient="vertical"
+                                                />
+                                                <span className={styles.volumeLabel}>
+                                                    {Math.round((isMuted ? 0 : volume) * 100)}%
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <span className={styles.timeDisplay}>{fmt(currentTime)} / {fmt(duration)}</span>
                                 </div>
                                 <div className={styles.controlRight}>
-                                    <span className={styles.memberCount}><FiUsers /> {members.length}</span>
                                     <button className={styles.iconBtn} onClick={handleFullscreen}><FiMaximize /></button>
                                 </div>
                             </div>
                         )}
 
-                        {/* Seek bar — HLS only, host only */}
+                        {/* Seek bar — HLS only */}
                         {hasHls && (
                             <div
                                 className={styles.seekBar}
@@ -516,17 +557,12 @@ const WatchPartyRoom = () => {
                             </div>
                         )}
 
-                        {/* Fallback notice for iframe embed */}
+                        {/* Iframe fallback notice */}
                         {!hasHls && currentVideo?.link_embed && (
                             <div className={styles.controls}>
-                                <div className={styles.controlLeft}>
-                                    <span className={styles.syncLabel}>
-                                        📺 Dùng điều khiển trong player — đồng bộ thủ công
-                                    </span>
-                                </div>
-                                <div className={styles.controlRight}>
-                                    <span className={styles.memberCount}><FiUsers /> {members.length}</span>
-                                </div>
+                                <span className={styles.syncLabel}>
+                                    📺 Dùng điều khiển trong player — đồng bộ thủ công
+                                </span>
                             </div>
                         )}
 
@@ -553,17 +589,18 @@ const WatchPartyRoom = () => {
                     {/* Chat sidebar */}
                     <div className={styles.chatSidebar}>
                         <div className={styles.chatHeader}>
-                            <h3>Chat ({messages.length})</h3>
+                            <h3>Chat</h3>
                             <div className={styles.membersList}>
                                 {members.map((m, i) => (
                                     <span
-                                        key={i}
+                                        key={m.id || i}
                                         className={`${styles.memberTag} ${m.isHost ? styles.hostTag : ''} ${m.isBuffering ? styles.bufferingTag : ''}`}
-                                        title={`${m.name}${m.isBuffering ? ' (đang load...)' : ''}`}
+                                        title={`${m.name}${m.isHost ? ' (Host)' : ''}${m.isBuffering ? ' — đang load...' : ''}`}
                                     >
-                                        {m.name?.charAt(0) || '?'}
+                                        {m.name?.charAt(0)?.toUpperCase() || '?'}
                                     </span>
                                 ))}
+                                <span className={styles.memberCountBadge}>{members.length}</span>
                             </div>
                         </div>
 
@@ -586,7 +623,7 @@ const WatchPartyRoom = () => {
                                 </div>
                             ) : (
                                 <div className={styles.nicknameDisplay}>
-                                    <span>Bạn: <strong>{nickname}</strong></span>
+                                    <span>Bạn: <strong>{nickname}</strong>{isHost ? ' 👑' : ''}</span>
                                     <button onClick={() => setEditingName(true)} className={styles.nicknameEditBtn}>
                                         <FiEdit2 size={12} /> Đổi tên
                                     </button>
@@ -601,7 +638,7 @@ const WatchPartyRoom = () => {
                                 </div>
                             ) : (
                                 messages.map((msg) => {
-                                    const isSystem = /^(📢|👋|▶️|⏸️|📺|⏳)/.test(msg.text);
+                                    const isSystem = /^(📢|👋|▶️|⏸️|📺|⏳|👑)/.test(msg.text);
                                     return (
                                         <div
                                             key={msg.id}
@@ -626,6 +663,7 @@ const WatchPartyRoom = () => {
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 placeholder="Nhập tin nhắn..."
                                 maxLength={500}
+                                autoComplete="off"
                             />
                             <button type="submit" disabled={!newMessage.trim()}><FiSend /></button>
                         </form>
