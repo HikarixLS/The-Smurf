@@ -26,7 +26,6 @@ const WatchPartyRoom = () => {
     // ── State ──
     const [room, setRoom] = useState(null);
     const [movie, setMovie] = useState(null);
-    const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
     const [currentEpisode, setCurrentEpisode] = useState(0);
@@ -46,7 +45,6 @@ const WatchPartyRoom = () => {
     const [videoReady, setVideoReady] = useState(false);
     const [hlsFailed, setHlsFailed] = useState(false);
     const [waitingFor, setWaitingFor] = useState(null);   // buffering viewer name(s)
-    const [toasts, setToasts] = useState([]);             // floating toast notifications
 
     /** Playback speed: 0.75 / 1 / 1.25 / 1.5 / 2 */
     const [playbackRate, setPlaybackRate] = useState(1);
@@ -54,16 +52,13 @@ const WatchPartyRoom = () => {
     // ── Refs ──
     const videoRef = useRef(null);
     const hlsRef = useRef(null);
-    const chatEndRef = useRef(null);
     const isSyncing = useRef(false);          // prevents sync feedback loops
     const heartbeatRef = useRef(null);
     const prevMembersRef = useRef(null);
     const roomRef = useRef(null);             // stale-closure guard for room state
     const movieLoadedRef = useRef(false);
     const promotingRef = useRef(false);
-    const announcedMembersRef = useRef(new Set()); // IDs we've already announced joining
     const wasPlayingBeforeBarrierRef = useRef(false);
-    const seenMsgIdsRef = useRef(new Set());              // message IDs already toasted
 
     const session = watchPartyService.getSession();
     const isHost = room?.hostId === session.id;
@@ -83,35 +78,12 @@ const WatchPartyRoom = () => {
         const displayName = user?.displayName || session.name;
         watchPartyService.updateName(displayName);
 
-        // Self-announce AFTER joinRoom completes so our member entry is confirmed in Firebase
-        watchPartyService.joinRoom(roomId)
-            .then(() => watchPartyService.sendMessage(roomId, `📢 ${displayName} đã vào phòng`))
-            .catch(console.error);
+        watchPartyService.joinRoom(roomId).catch(console.error);
 
         const unsubRoom = watchPartyService.onRoomUpdate(roomId, (roomData) => {
             if (!roomData) { navigate('/watch-party'); return; }
 
-            // ── Host-driven join/leave detection (backup for any missed self-announcements) ──
-            const amHost = roomData.hostId === session.id;
             const currentMembers = roomData.members || {};
-            const currentKeys = Object.keys(currentMembers);
-
-            if (prevMembersRef.current !== null && amHost) {
-                const prevKeys = new Set(Object.keys(prevMembersRef.current));
-
-                // Announce leaves (only host, single source of truth)
-                prevKeys.forEach(key => {
-                    if (!currentKeys.includes(key) && key !== session.id) {
-                        const left = prevMembersRef.current[key];
-                        if (left?.name) {
-                            watchPartyService.sendMessage(roomId, `👋 ${left.name} đã rời phòng`);
-                        }
-                    }
-                });
-            }
-
-            // Track all seen member IDs (prevents stale reconnect re-announcements)
-            currentKeys.forEach(k => announcedMembersRef.current.add(k));
             prevMembersRef.current = currentMembers;
             setRoom(roomData);
 
@@ -130,7 +102,6 @@ const WatchPartyRoom = () => {
                     if (oldest.id === session.id) {
                         promotingRef.current = true;
                         watchPartyService.promoteToHost(roomId)
-                            .then(() => watchPartyService.sendMessage(roomId, `👑 ${session.name} đã tự động trở thành Host mới`))
                             .finally(() => { promotingRef.current = false; });
                     }
                 }
@@ -189,11 +160,8 @@ const WatchPartyRoom = () => {
             }
         });
 
-        const unsubMsgs = watchPartyService.onMessages(roomId, setMessages);
-
         return () => {
             unsubRoom();
-            unsubMsgs();
             watchPartyService.leaveRoom(roomId);
         };
     }, [roomId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -344,45 +312,7 @@ const WatchPartyRoom = () => {
         setTimeout(() => { isSyncing.current = false; }, 1000);
     }, [session.id]);
 
-    // Auto-scroll chat
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
 
-    // ── Toast notifications for system messages ──
-    const TOAST_DURATION = 3500;
-    const SYSTEM_MSG_RE = /^(📢|👋|▶️|⏸️|📺|⏳|👑)/;
-
-    const getToastStyle = (text) => {
-        if (text.startsWith('📢')) return 'join';
-        if (text.startsWith('👋')) return 'leave';
-        if (text.startsWith('▶️')) return 'play';
-        if (text.startsWith('⏸️')) return 'pause';
-        if (text.startsWith('👑')) return 'host';
-        if (text.startsWith('📺')) return 'episode';
-        return 'default';
-    };
-
-    const dismissToast = useCallback((id) => {
-        setToasts(prev => prev.filter(t => t.id !== id));
-    }, []);
-
-    useEffect(() => {
-        const newSystemMsgs = messages.filter(
-            msg => SYSTEM_MSG_RE.test(msg.text) && !seenMsgIdsRef.current.has(msg.id)
-        );
-        if (newSystemMsgs.length === 0) return;
-
-        newSystemMsgs.forEach(msg => {
-            seenMsgIdsRef.current.add(msg.id);
-            const toastId = msg.id;
-            setToasts(prev => [
-                ...prev.slice(-4), // keep at most 5 toasts at once
-                { id: toastId, text: msg.text, style: getToastStyle(msg.text) },
-            ]);
-            setTimeout(() => dismissToast(toastId), TOAST_DURATION);
-        });
-    }, [messages, dismissToast]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Close volume popup on outside click
     useEffect(() => {
@@ -460,7 +390,6 @@ const WatchPartyRoom = () => {
                 playbackRate: video.playbackRate,
             });
             watchPartyService.updateRoomStatus(roomId, 'playing');
-            watchPartyService.sendMessage(roomId, '▶️ Host đã bấm phát');
         } else {
             video.pause();
             watchPartyService.syncPlayback(roomId, {
@@ -470,7 +399,6 @@ const WatchPartyRoom = () => {
                 playbackRate: video.playbackRate,
             });
             watchPartyService.updateRoomStatus(roomId, 'paused');
-            watchPartyService.sendMessage(roomId, '⏸️ Host đã tạm dừng');
         }
 
         setTimeout(() => { isSyncing.current = false; }, 1000);
@@ -545,7 +473,6 @@ const WatchPartyRoom = () => {
             playbackRate: 1,
         });
         await watchPartyService.updateRoomStatus(roomId, 'waiting');
-        await watchPartyService.sendMessage(roomId, `📺 Đã chuyển sang tập ${epIdx + 1}`);
         setPlaybackRate(1);
         if (videoRef.current) videoRef.current.playbackRate = 1;
     };
@@ -586,21 +513,6 @@ const WatchPartyRoom = () => {
     return (
         <>
             <Header />
-
-            {/* ── Toast notifications ── */}
-            {toasts.length > 0 && (
-                <div className={styles.toastContainer}>
-                    {toasts.map(t => (
-                        <div
-                            key={t.id}
-                            className={`${styles.toast} ${styles[`toast_${t.style}`]}`}
-                            onClick={() => dismissToast(t.id)}
-                        >
-                            <span className={styles.toastText}>{t.text}</span>
-                        </div>
-                    ))}
-                </div>
-            )}
             <main className={styles.room}>
                 <div className={styles.layout}>
                     <div className={styles.mainContent}>
@@ -779,77 +691,6 @@ const WatchPartyRoom = () => {
                                 </div>
                             </div>
                         )}
-                    </div>
-
-                    {/* Notifications sidebar */}
-                    <div className={styles.chatSidebar}>
-                        <div className={styles.chatHeader}>
-                            <h3>Thông báo</h3>
-                            <div className={styles.membersList}>
-                                {members.map((m, i) => (
-                                    <span
-                                        key={m.id || i}
-                                        className={`${styles.memberTag} ${m.isHost ? styles.hostTag : ''} ${m.isBuffering ? styles.bufferingTag : ''}`}
-                                        title={`${m.name}${m.isHost ? ' (Host)' : ''}${m.isBuffering ? ' — đang load...' : ''}`}
-                                    >
-                                        {m.name?.charAt(0)?.toUpperCase() || '?'}
-                                    </span>
-                                ))}
-                                <span className={styles.memberCountBadge}>{members.length}</span>
-                            </div>
-                        </div>
-
-                        {/* Nickname editor */}
-                        <div className={styles.nicknameBar}>
-                            {editingName ? (
-                                <div className={styles.nicknameEdit}>
-                                    <input
-                                        type="text"
-                                        value={nickname}
-                                        onChange={e => setNickname(e.target.value)}
-                                        onKeyDown={e => e.key === 'Enter' && handleSaveNickname()}
-                                        maxLength={20}
-                                        autoFocus
-                                        className={styles.nicknameInput}
-                                    />
-                                    <button onClick={handleSaveNickname} className={styles.nicknameSave}>
-                                        <FiCheck size={14} />
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className={styles.nicknameDisplay}>
-                                    <span>Bạn: <strong>{nickname}</strong>{isHost ? ' 👑' : ''}</span>
-                                    <button onClick={() => setEditingName(true)} className={styles.nicknameEditBtn}>
-                                        <FiEdit2 size={12} /> Đổi tên
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className={styles.chatMessages}>
-                            {messages.filter(msg => /^(📢|👋|▶️|⏸️|📺|⏳|👑)/.test(msg.text)).length === 0 ? (
-                                <div className={styles.chatEmpty}>
-                                    <p>Chưa có hoạt động nào.</p>
-                                </div>
-                            ) : (
-                                messages
-                                    .filter(msg => /^(📢|👋|▶️|⏸️|📺|⏳|👑)/.test(msg.text))
-                                    .map((msg) => (
-                                        <div
-                                            key={msg.id}
-                                            className={`${styles.message} ${styles.systemMessage}`}
-                                        >
-                                            <p className={styles.msgText}>{msg.text}</p>
-                                            <span className={styles.msgTime}>
-                                                {new Date(msg.timestamp).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </div>
-                                    ))
-                            )}
-                            <div ref={chatEndRef} />
-                        </div>
-
-
                     </div>
                 </div>
             </main>
