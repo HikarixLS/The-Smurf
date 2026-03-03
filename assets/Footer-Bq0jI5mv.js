@@ -1,1 +1,0 @@
-import{j as o}from"./vendor-B3zf6EO7.js";const t="_footer_5ccny_1",e="_copyright_5ccny_51",r={footer:t,copyright:e},c=()=>o.jsx("footer",{className:r.footer,children:o.jsx("div",{className:r.copyright,children:"© 2026 The Smurf. All rights reserved."})});export{c as F};
