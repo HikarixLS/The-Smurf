@@ -226,6 +226,24 @@
     transition: width 0.1s linear;
 }
 
+/* Viewer lock state — dimmed and not interactive */
+.seekBarLocked {
+    cursor: not-allowed !important;
+    opacity: 0.55;
+}
+
+/* Small lock icon badge that floats on the right of the seekbar */
+.seekLockBadge {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    opacity: 0.6;
+    pointer-events: none;
+    line-height: 1;
+}
+
 /* Icon buttons */
 .iconBtn {
     display: flex;
@@ -272,6 +290,47 @@
     padding: 10px 16px;
     background: rgba(255, 255, 255, 0.02);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.controlLeft {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.controlRight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Playback speed dropdown (host only) */
+.speedSelect {
+    appearance: none;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+    font-family: inherit;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.speedSelect:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.speedSelect:focus {
+    border-color: var(--color-accent, #667eea);
+}
+
+.speedSelect option {
+    background: #141420;
+    color: #fff;
 }
 
 .controlBtn {
@@ -687,5 +746,119 @@
     .chatSidebar {
         width: 100%;
         height: 400px;
+    }
+}
+
+/* ── Toast notifications ── */
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateX(100%) scale(0.92);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes toastOut {
+    from {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(110%) scale(0.88);
+    }
+}
+
+.toastContainer {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: all;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    border-radius: 12px;
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+    cursor: pointer;
+    max-width: 340px;
+    animation: toastIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.toast:hover {
+    transform: translateX(-4px) scale(1.02);
+}
+
+.toastText {
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Variants */
+.toast_join {
+    background: rgba(102, 126, 234, 0.22);
+    border-color: rgba(102, 126, 234, 0.35);
+}
+
+.toast_leave {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.toast_play {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.toast_pause {
+    background: rgba(251, 191, 36, 0.15);
+    border-color: rgba(251, 191, 36, 0.28);
+}
+
+.toast_host {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.35);
+}
+
+.toast_episode {
+    background: rgba(20, 184, 166, 0.18);
+    border-color: rgba(20, 184, 166, 0.3);
+}
+
+.toast_default {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+@media (max-width: 600px) {
+    .toastContainer {
+        right: 10px;
+        left: 10px;
+        top: 70px;
+    }
+
+    .toast {
+        max-width: 100%;
     }
 }

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Hls from 'hls.js';
 import {
-    FiArrowLeft, FiSend, FiUsers, FiPlay, FiPause,
+    FiArrowLeft, FiUsers, FiPlay, FiPause,
     FiCopy, FiCheck, FiEdit2,
     FiVolume2, FiVolumeX, FiMaximize,
 } from 'react-icons/fi';
@@ -10,10 +10,13 @@ import Header from '@/components/layout/Header/Header';
 import { watchPartyService } from '@/services/firebase/watchPartyService';
 import { movieService } from '@/services/api/movieService';
 import { useAuth } from '@/services/firebase/AuthContext';
+import {
+    SYNC_THRESHOLD_SECONDS,
+    HEARTBEAT_INTERVAL_MS,
+    estimateHostTime,
+    allMembersReady,
+} from '@/services/watchParty/syncEngine';
 import styles from './WatchPartyRoom.module.css';
-
-const SYNC_THRESHOLD = 3;    // seconds — max drift before force-seek
-const HEARTBEAT_MS = 8000; // host broadcasts position every 8s (fallback only)
 
 const WatchPartyRoom = () => {
     const { roomId } = useParams();
@@ -24,7 +27,6 @@ const WatchPartyRoom = () => {
     const [room, setRoom] = useState(null);
     const [movie, setMovie] = useState(null);
     const [messages, setMessages] = useState([]);
-    const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
     const [currentEpisode, setCurrentEpisode] = useState(0);
@@ -32,60 +34,74 @@ const WatchPartyRoom = () => {
     const [nickname, setNickname] = useState('');
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
-    const [volume, setVolume] = useState(0.8);   // 0–1
-    const [showVolume, setShowVolume] = useState(false);  // volume slider popup
+    // Restore persisted volume from localStorage, default 0.8
+    const [volume, setVolume] = useState(() => {
+        const saved = parseFloat(localStorage.getItem('smurf_volume'));
+        return isNaN(saved) ? 0.8 : Math.min(1, Math.max(0, saved));
+    });
+    const [showVolume, setShowVolume] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isBuffering, setIsBuffering] = useState(false);
     const [videoReady, setVideoReady] = useState(false);
     const [hlsFailed, setHlsFailed] = useState(false);
-    const [waitingFor, setWaitingFor] = useState(null);  // buffering viewer name
+    const [waitingFor, setWaitingFor] = useState(null);   // buffering viewer name(s)
+    const [toasts, setToasts] = useState([]);             // floating toast notifications
+
+    /** Playback speed: 0.75 / 1 / 1.25 / 1.5 / 2 */
+    const [playbackRate, setPlaybackRate] = useState(1);
 
     // ── Refs ──
     const videoRef = useRef(null);
     const hlsRef = useRef(null);
     const chatEndRef = useRef(null);
-    const isSyncing = useRef(false);
+    const isSyncing = useRef(false);          // prevents sync feedback loops
     const heartbeatRef = useRef(null);
     const prevMembersRef = useRef(null);
-    const roomRef = useRef(null);
+    const roomRef = useRef(null);             // stale-closure guard for room state
     const movieLoadedRef = useRef(false);
-    const promotingRef = useRef(false);   // prevent duplicate promoteToHost calls
+    const promotingRef = useRef(false);
+    const announcedMembersRef = useRef(new Set()); // IDs we've already announced joining
+    const wasPlayingBeforeBarrierRef = useRef(false);
+    const seenMsgIdsRef = useRef(new Set());              // message IDs already toasted
 
     const session = watchPartyService.getSession();
     const isHost = room?.hostId === session.id;
 
     useEffect(() => { roomRef.current = room; }, [room]);
 
+
     // ── Init nickname ──
     useEffect(() => {
         const name = user?.displayName || session.name;
         setNickname(name);
         watchPartyService.updateName(name);
-    }, [user]);
+    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Join room & subscribe ──
     useEffect(() => {
         const displayName = user?.displayName || session.name;
         watchPartyService.updateName(displayName);
-        watchPartyService.joinRoom(roomId).catch(console.error);
-        watchPartyService.sendMessage(roomId, `📢 ${displayName} đã vào phòng`);
+
+        // Self-announce AFTER joinRoom completes so our member entry is confirmed in Firebase
+        watchPartyService.joinRoom(roomId)
+            .then(() => watchPartyService.sendMessage(roomId, `📢 ${displayName} đã vào phòng`))
+            .catch(console.error);
 
         const unsubRoom = watchPartyService.onRoomUpdate(roomId, (roomData) => {
             if (!roomData) { navigate('/watch-party'); return; }
 
-            // ── Detect member join/leave ──
-            if (prevMembersRef.current) {
-                const prev = new Set(Object.keys(prevMembersRef.current));
-                const current = roomData.members ? Object.keys(roomData.members) : [];
-                current.forEach(key => {
-                    if (!prev.has(key) && key !== session.id) {
-                        // Someone new joined — already announced by themselves via sendMessage
-                        // We just let the system message show
-                    }
-                });
-                prev.forEach(key => {
-                    if (!current.includes(key) && key !== session.id) {
+            // ── Host-driven join/leave detection (backup for any missed self-announcements) ──
+            const amHost = roomData.hostId === session.id;
+            const currentMembers = roomData.members || {};
+            const currentKeys = Object.keys(currentMembers);
+
+            if (prevMembersRef.current !== null && amHost) {
+                const prevKeys = new Set(Object.keys(prevMembersRef.current));
+
+                // Announce leaves (only host, single source of truth)
+                prevKeys.forEach(key => {
+                    if (!currentKeys.includes(key) && key !== session.id) {
                         const left = prevMembersRef.current[key];
                         if (left?.name) {
                             watchPartyService.sendMessage(roomId, `👋 ${left.name} đã rời phòng`);
@@ -93,7 +109,10 @@ const WatchPartyRoom = () => {
                     }
                 });
             }
-            prevMembersRef.current = roomData.members || {};
+
+            // Track all seen member IDs (prevents stale reconnect re-announcements)
+            currentKeys.forEach(k => announcedMembersRef.current.add(k));
+            prevMembersRef.current = currentMembers;
             setRoom(roomData);
 
             if (roomData.playback?.episode !== undefined) {
@@ -101,7 +120,7 @@ const WatchPartyRoom = () => {
             }
             setLoading(false);
 
-            // ── Auto Host Promotion (host closed tab / network drop) ──
+            // ── Auto Host Promotion ──
             if (roomData.members) {
                 const memberList = Object.values(roomData.members);
                 const currentHost = memberList.find(m => m.isHost);
@@ -117,7 +136,7 @@ const WatchPartyRoom = () => {
                 }
             }
 
-            // ── Fetch movie detail ONCE (use ref, not state — stale closure guard) ──
+            // ── Fetch movie detail ONCE ──
             if (!movieLoadedRef.current && roomData.movieSlug) {
                 movieLoadedRef.current = true;
                 movieService.getMovieDetail(roomData.movieSlug).then(res => {
@@ -131,24 +150,36 @@ const WatchPartyRoom = () => {
                 syncToHost(roomData.playback);
             }
 
-            // ── Host: detect if any viewer is buffering ──
+            // ── Host: Global Playback Barrier ──
             if (roomData.hostId === session.id && roomData.members) {
-                const bufferingMember = Object.values(roomData.members).find(
+                const bufferingMembers = Object.values(roomData.members).filter(
                     m => m.id !== session.id && m.isBuffering
                 );
-                if (bufferingMember) {
+
+                if (bufferingMembers.length > 0) {
+                    // Pause host video while someone buffers
                     if (videoRef.current && !videoRef.current.paused) {
+                        wasPlayingBeforeBarrierRef.current = true;
                         isSyncing.current = true;
                         videoRef.current.pause();
-                        setTimeout(() => { isSyncing.current = false; }, 1000);
+                        setTimeout(() => { isSyncing.current = false; }, 500);
                     }
-                    setWaitingFor(bufferingMember.name);
+                    setWaitingFor(bufferingMembers.map(m => m.name).join(', '));
                 } else {
+                    // All ready — auto-resume if host was playing
                     setWaitingFor(prev => {
-                        if (prev !== null) {
+                        if (prev !== null && wasPlayingBeforeBarrierRef.current) {
+                            wasPlayingBeforeBarrierRef.current = false;
                             if (videoRef.current && videoRef.current.paused) {
                                 isSyncing.current = true;
                                 videoRef.current.play().catch(() => { });
+                                watchPartyService.syncPlayback(roomId, {
+                                    currentTime: videoRef.current.currentTime,
+                                    isPlaying: true,
+                                    episode: roomRef.current?.playback?.episode ?? 0,
+                                    playbackRate: videoRef.current.playbackRate,
+                                });
+                                watchPartyService.updateRoomStatus(roomId, 'playing');
                                 setTimeout(() => { isSyncing.current = false; }, 1000);
                             }
                         }
@@ -198,9 +229,22 @@ const WatchPartyRoom = () => {
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 if (cancelled) return;
                 setVideoReady(true);
+                // Apply persisted playback rate
+                const rate = roomRef.current?.playback?.playbackRate || 1;
+                video.playbackRate = rate;
+                setPlaybackRate(rate);
+
                 const pb = roomRef.current?.playback;
                 if (pb?.isPlaying) {
                     video.play().catch(() => { video.muted = true; setIsMuted(true); video.play().catch(() => { }); });
+                }
+                // Auto-resync on reconnect
+                if (pb && !pb.isPlaying) {
+                    const est = estimateHostTime(
+                        pb.currentTime, pb.updatedAt, false, 0,
+                        watchPartyService.getTrueTime
+                    );
+                    video.currentTime = est;
                 }
             });
 
@@ -209,7 +253,12 @@ const WatchPartyRoom = () => {
                 switch (data.type) {
                     case Hls.ErrorTypes.MEDIA_ERROR:
                         mediaRecoveryAttempts++;
-                        if (mediaRecoveryAttempts <= MAX_RECOVERY) hls.recoverMediaError();
+                        if (mediaRecoveryAttempts <= MAX_RECOVERY) {
+                            hls.recoverMediaError();
+                        } else {
+                            // Exhausted retries → fall through to embed if available
+                            hls.destroy(); hlsRef.current = null; setHlsFailed(true);
+                        }
                         break;
                     case Hls.ErrorTypes.NETWORK_ERROR:
                         setTimeout(() => { if (hlsRef.current && !cancelled) hls.startLoad(); }, 2000);
@@ -242,7 +291,7 @@ const WatchPartyRoom = () => {
         };
     }, [movie, currentEpisode, hlsFailed]);
 
-    // ── Host heartbeat ──
+    // ── Host heartbeat (drift correction fallback) ──
     useEffect(() => {
         if (!room || room.hostId !== session.id) return;
         heartbeatRef.current = setInterval(() => {
@@ -251,26 +300,38 @@ const WatchPartyRoom = () => {
                 currentTime: videoRef.current.currentTime,
                 isPlaying: !videoRef.current.paused,
                 episode: currentEpisode,
+                playbackRate: videoRef.current.playbackRate,
             });
-        }, HEARTBEAT_MS);
+        }, HEARTBEAT_INTERVAL_MS);
         return () => clearInterval(heartbeatRef.current);
     }, [room, currentEpisode, roomId]);
 
-    // ── Sync viewer to host ──
+    // ── Sync viewer to host (latency-compensated) ──
     const syncToHost = useCallback((playback) => {
         const video = videoRef.current;
         if (!video || isSyncing.current || roomRef.current?.hostId === session.id) return;
 
-        const estimated = (() => {
-            if (!playback.isPlaying || !playback.updatedAt) return playback.currentTime || 0;
-            const elapsed = (Date.now() - playback.updatedAt) / 1000;
-            return (playback.currentTime || 0) + Math.min(elapsed, 10);
-        })();
+        const estimated = estimateHostTime(
+            playback.currentTime,
+            playback.updatedAt,
+            playback.isPlaying,
+            0,
+            watchPartyService.getTrueTime
+        );
 
         const drift = Math.abs(video.currentTime - estimated);
         isSyncing.current = true;
 
-        if (drift > SYNC_THRESHOLD) video.currentTime = estimated;
+        if (drift > SYNC_THRESHOLD_SECONDS) {
+            video.currentTime = estimated;
+        }
+
+        // Apply playback rate from host
+        const rate = playback.playbackRate || 1;
+        if (video.playbackRate !== rate) {
+            video.playbackRate = rate;
+            setPlaybackRate(rate);
+        }
 
         if (playback.isPlaying && video.paused) {
             video.play().catch(() => { });
@@ -288,6 +349,41 @@ const WatchPartyRoom = () => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    // ── Toast notifications for system messages ──
+    const TOAST_DURATION = 3500;
+    const SYSTEM_MSG_RE = /^(📢|👋|▶️|⏸️|📺|⏳|👑)/;
+
+    const getToastStyle = (text) => {
+        if (text.startsWith('📢')) return 'join';
+        if (text.startsWith('👋')) return 'leave';
+        if (text.startsWith('▶️')) return 'play';
+        if (text.startsWith('⏸️')) return 'pause';
+        if (text.startsWith('👑')) return 'host';
+        if (text.startsWith('📺')) return 'episode';
+        return 'default';
+    };
+
+    const dismissToast = useCallback((id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    }, []);
+
+    useEffect(() => {
+        const newSystemMsgs = messages.filter(
+            msg => SYSTEM_MSG_RE.test(msg.text) && !seenMsgIdsRef.current.has(msg.id)
+        );
+        if (newSystemMsgs.length === 0) return;
+
+        newSystemMsgs.forEach(msg => {
+            seenMsgIdsRef.current.add(msg.id);
+            const toastId = msg.id;
+            setToasts(prev => [
+                ...prev.slice(-4), // keep at most 5 toasts at once
+                { id: toastId, text: msg.text, style: getToastStyle(msg.text) },
+            ]);
+            setTimeout(() => dismissToast(toastId), TOAST_DURATION);
+        });
+    }, [messages, dismissToast]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Close volume popup on outside click
     useEffect(() => {
         if (!showVolume) return;
@@ -302,7 +398,6 @@ const WatchPartyRoom = () => {
     const onPlay = () => {
         if (isSyncing.current) return;
         setIsPlaying(true);
-        // Non-host: if room says paused, force-pause (don't write Firebase)
         if (roomRef.current && roomRef.current.hostId !== session.id) {
             if (!roomRef.current.playback?.isPlaying) videoRef.current?.pause();
         }
@@ -311,10 +406,37 @@ const WatchPartyRoom = () => {
     const onWaiting = () => {
         setIsBuffering(true);
         watchPartyService.reportBuffering(roomId, true);
+        // If HOST is buffering, broadcast pause to all viewers immediately
+        if (roomRef.current?.hostId === session.id && videoRef.current && !videoRef.current.paused) {
+            isSyncing.current = true;
+            videoRef.current.pause();
+            watchPartyService.syncPlayback(roomId, {
+                currentTime: videoRef.current.currentTime,
+                isPlaying: false,
+                episode: roomRef.current?.playback?.episode ?? 0,
+                playbackRate: videoRef.current.playbackRate,
+            });
+            watchPartyService.updateRoomStatus(roomId, 'paused');
+            setTimeout(() => { isSyncing.current = false; }, 500);
+        }
     };
     const onCanPlay = () => {
+        const wasHostBuffering = isBuffering && roomRef.current?.hostId === session.id;
         setIsBuffering(false);
         watchPartyService.reportBuffering(roomId, false);
+        // If HOST just finished buffering and room was playing, resume for everyone
+        if (wasHostBuffering && roomRef.current?.playback?.isPlaying && videoRef.current?.paused) {
+            isSyncing.current = true;
+            videoRef.current.play().catch(() => { });
+            watchPartyService.syncPlayback(roomId, {
+                currentTime: videoRef.current.currentTime,
+                isPlaying: true,
+                episode: roomRef.current?.playback?.episode ?? 0,
+                playbackRate: videoRef.current.playbackRate,
+            });
+            watchPartyService.updateRoomStatus(roomId, 'playing');
+            setTimeout(() => { isSyncing.current = false; }, 1000);
+        }
     };
 
     // ── Controls ──
@@ -324,13 +446,29 @@ const WatchPartyRoom = () => {
         isSyncing.current = true;
 
         if (video.paused) {
+            // Only play if all members ready (barrier guard)
+            const members = roomRef.current?.members;
+            if (!allMembersReady(members)) {
+                isSyncing.current = false;
+                return; // Don't start yet — show barrier UI
+            }
             video.play().catch(() => { video.muted = true; setIsMuted(true); video.play().catch(() => { }); });
-            watchPartyService.syncPlayback(roomId, { currentTime: video.currentTime, isPlaying: true, episode: currentEpisode });
+            watchPartyService.syncPlayback(roomId, {
+                currentTime: video.currentTime,
+                isPlaying: true,
+                episode: currentEpisode,
+                playbackRate: video.playbackRate,
+            });
             watchPartyService.updateRoomStatus(roomId, 'playing');
             watchPartyService.sendMessage(roomId, '▶️ Host đã bấm phát');
         } else {
             video.pause();
-            watchPartyService.syncPlayback(roomId, { currentTime: video.currentTime, isPlaying: false, episode: currentEpisode });
+            watchPartyService.syncPlayback(roomId, {
+                currentTime: video.currentTime,
+                isPlaying: false,
+                episode: currentEpisode,
+                playbackRate: video.playbackRate,
+            });
             watchPartyService.updateRoomStatus(roomId, 'paused');
             watchPartyService.sendMessage(roomId, '⏸️ Host đã tạm dừng');
         }
@@ -344,12 +482,33 @@ const WatchPartyRoom = () => {
         const rect = e.currentTarget.getBoundingClientRect();
         const newTime = ((e.clientX - rect.left) / rect.width) * duration;
         video.currentTime = newTime;
-        watchPartyService.syncPlayback(roomId, { currentTime: newTime, isPlaying: !video.paused, episode: currentEpisode });
+        // Immediate sync on seek (no throttle)
+        watchPartyService.syncPlayback(roomId, {
+            currentTime: newTime,
+            isPlaying: !video.paused,
+            episode: currentEpisode,
+            playbackRate: video.playbackRate,
+        });
     };
+
+    /** Host changes playback speed — sync to all viewers immediately */
+    const handleSpeedChange = useCallback((rate) => {
+        if (!isHost || !videoRef.current) return;
+        const video = videoRef.current;
+        video.playbackRate = rate;
+        setPlaybackRate(rate);
+        watchPartyService.syncPlayback(roomId, {
+            currentTime: video.currentTime,
+            isPlaying: !video.paused,
+            episode: currentEpisode,
+            playbackRate: rate,
+        });
+    }, [isHost, currentEpisode, roomId]);
 
     const handleVolumeChange = (e) => {
         const val = parseFloat(e.target.value);
         setVolume(val);
+        localStorage.setItem('smurf_volume', String(val));
         if (videoRef.current) {
             videoRef.current.volume = val;
             videoRef.current.muted = val === 0;
@@ -375,20 +534,20 @@ const WatchPartyRoom = () => {
         (v.requestFullscreen || v.webkitRequestFullscreen)?.call(v);
     };
 
-    const handleSendMessage = async (e) => {
-        e.preventDefault();
-        const text = newMessage.trim();
-        if (!text) return;
-        setNewMessage(''); // clear immediately for better UX
-        await watchPartyService.sendMessage(roomId, text);
-    };
 
     const handleEpisodeChange = async (epIdx) => {
         if (!isHost) return;
         setCurrentEpisode(epIdx);
-        await watchPartyService.syncPlayback(roomId, { episode: epIdx, currentTime: 0, isPlaying: false });
+        await watchPartyService.syncPlayback(roomId, {
+            episode: epIdx,
+            currentTime: 0,
+            isPlaying: false,
+            playbackRate: 1,
+        });
         await watchPartyService.updateRoomStatus(roomId, 'waiting');
         await watchPartyService.sendMessage(roomId, `📺 Đã chuyển sang tập ${epIdx + 1}`);
+        setPlaybackRate(1);
+        if (videoRef.current) videoRef.current.playbackRate = 1;
     };
 
     const handleCopyLink = () => {
@@ -415,6 +574,8 @@ const WatchPartyRoom = () => {
     const currentVideo = episodes[currentEpisode];
     const hasHls = !!currentVideo?.link_m3u8 && !hlsFailed;
 
+    const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
     if (loading) return (
         <div className={styles.loadingPage}>
             <div className={styles.spinner} />
@@ -425,6 +586,21 @@ const WatchPartyRoom = () => {
     return (
         <>
             <Header />
+
+            {/* ── Toast notifications ── */}
+            {toasts.length > 0 && (
+                <div className={styles.toastContainer}>
+                    {toasts.map(t => (
+                        <div
+                            key={t.id}
+                            className={`${styles.toast} ${styles[`toast_${t.style}`]}`}
+                            onClick={() => dismissToast(t.id)}
+                        >
+                            <span className={styles.toastText}>{t.text}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
             <main className={styles.room}>
                 <div className={styles.layout}>
                     <div className={styles.mainContent}>
@@ -485,7 +661,7 @@ const WatchPartyRoom = () => {
                                 <div className={styles.bufferOverlay}>
                                     <div className={styles.spinner} />
                                     <p className={styles.waitingText}>
-                                        ⏳ Đang chờ <strong>{waitingFor}</strong> tải phim...
+                                        ⏳ Đang chờ <strong>{waitingFor}</strong> tải video...
                                     </p>
                                 </div>
                             )}
@@ -508,7 +684,7 @@ const WatchPartyRoom = () => {
                                         <span className={styles.syncLabel}>🔄 Đồng bộ với {room?.hostName}</span>
                                     )}
 
-                                    {/* Volume control with slider */}
+                                    {/* Volume control */}
                                     <div className={styles.volumeWrap} onClick={e => e.stopPropagation()}>
                                         <button
                                             className={styles.iconBtn}
@@ -536,7 +712,24 @@ const WatchPartyRoom = () => {
 
                                     <span className={styles.timeDisplay}>{fmt(currentTime)} / {fmt(duration)}</span>
                                 </div>
+
                                 <div className={styles.controlRight}>
+                                    {/* Playback speed selector */}
+                                    {isHost && (
+                                        <select
+                                            className={styles.speedSelect}
+                                            value={playbackRate}
+                                            onChange={e => handleSpeedChange(parseFloat(e.target.value))}
+                                            title="Tốc độ phát"
+                                        >
+                                            {SPEED_OPTIONS.map(r => (
+                                                <option key={r} value={r}>{r === 1 ? 'x1 (Bình thường)' : `x${r}`}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                    {!isHost && playbackRate !== 1 && (
+                                        <span className={styles.syncLabel}>x{playbackRate}</span>
+                                    )}
                                     <button className={styles.iconBtn} onClick={handleFullscreen}><FiMaximize /></button>
                                 </div>
                             </div>
@@ -545,15 +738,17 @@ const WatchPartyRoom = () => {
                         {/* Seek bar — HLS only */}
                         {hasHls && (
                             <div
-                                className={styles.seekBar}
+                                className={`${styles.seekBar} ${!isHost ? styles.seekBarLocked : ''}`}
                                 onClick={isHost ? handleSeek : undefined}
-                                style={{ cursor: isHost ? 'pointer' : 'default' }}
-                                title={!isHost ? 'Chỉ host mới có thể tua phim' : ''}
+                                title={!isHost ? '🔒 Chỉ host mới có thể tua phim' : 'Kéo để tua'}
                             >
                                 <div
                                     className={styles.seekProgress}
                                     style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
                                 />
+                                {!isHost && (
+                                    <div className={styles.seekLockBadge}>🔒</div>
+                                )}
                             </div>
                         )}
 
@@ -586,10 +781,10 @@ const WatchPartyRoom = () => {
                         )}
                     </div>
 
-                    {/* Chat sidebar */}
+                    {/* Notifications sidebar */}
                     <div className={styles.chatSidebar}>
                         <div className={styles.chatHeader}>
-                            <h3>Chat</h3>
+                            <h3>Thông báo</h3>
                             <div className={styles.membersList}>
                                 {members.map((m, i) => (
                                     <span
@@ -632,41 +827,29 @@ const WatchPartyRoom = () => {
                         </div>
 
                         <div className={styles.chatMessages}>
-                            {messages.length === 0 ? (
+                            {messages.filter(msg => /^(📢|👋|▶️|⏸️|📺|⏳|👑)/.test(msg.text)).length === 0 ? (
                                 <div className={styles.chatEmpty}>
-                                    <p>Chưa có tin nhắn. Hãy bắt đầu trò chuyện!</p>
+                                    <p>Chưa có hoạt động nào.</p>
                                 </div>
                             ) : (
-                                messages.map((msg) => {
-                                    const isSystem = /^(📢|👋|▶️|⏸️|📺|⏳|👑)/.test(msg.text);
-                                    return (
+                                messages
+                                    .filter(msg => /^(📢|👋|▶️|⏸️|📺|⏳|👑)/.test(msg.text))
+                                    .map((msg) => (
                                         <div
                                             key={msg.id}
-                                            className={`${styles.message} ${msg.userId === session.id ? styles.myMessage : ''} ${isSystem ? styles.systemMessage : ''}`}
+                                            className={`${styles.message} ${styles.systemMessage}`}
                                         >
-                                            {!isSystem && <span className={styles.msgUser}>{msg.userName}</span>}
                                             <p className={styles.msgText}>{msg.text}</p>
                                             <span className={styles.msgTime}>
                                                 {new Date(msg.timestamp).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </div>
-                                    );
-                                })
+                                    ))
                             )}
                             <div ref={chatEndRef} />
                         </div>
 
-                        <form className={styles.chatInput} onSubmit={handleSendMessage}>
-                            <input
-                                type="text"
-                                value={newMessage}
-                                onChange={(e) => setNewMessage(e.target.value)}
-                                placeholder="Nhập tin nhắn..."
-                                maxLength={500}
-                                autoComplete="off"
-                            />
-                            <button type="submit" disabled={!newMessage.trim()}><FiSend /></button>
-                        </form>
+
                     </div>
                 </div>
             </main>
