@@ -1,68 +1,35 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-
-  <!-- SEO -->
-  <title>The Smurf - Xem phim online chất lượng cao</title>
-  <meta name="description"
-    content="The Smurf - Xem phim online miễn phí, chất lượng cao. Kho phim bộ, phim lẻ, hoạt hình phong phú được cập nhật hàng ngày." />
-  <meta name="keywords" content="xem phim, phim online, phim hay, phim mới, phim bộ, phim lẻ, the smurf" />
-  <meta name="robots" content="index, follow" />
-  <meta name="theme-color" content="#0a0a1a" />
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="/The-Smurf/favicon.svg" />
-  <link rel="apple-touch-icon" href="/The-Smurf/favicon.svg" />
-
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="The Smurf" />
-  <meta property="og:title" content="The Smurf - Xem phim online chất lượng cao" />
-  <meta property="og:description"
-    content="Xem phim online miễn phí, chất lượng cao. Kho phim bộ, phim lẻ, hoạt hình phong phú." />
-  <meta property="og:url" content="https://hikarixls.github.io/The-Smurf/" />
-  <meta property="og:image" content="https://hikarixls.github.io/The-Smurf/og-image.jpg" />
-
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="The Smurf - Xem phim online" />
-  <meta name="twitter:description" content="Xem phim online miễn phí, chất lượng cao." />
-
-  <!-- Preconnect to external domains for faster resource loading -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="preconnect" href="https://img.ophim.live" crossorigin />
-  <link rel="preconnect" href="https://ophim1.com" crossorigin />
-  <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
-  <link rel="dns-prefetch" href="https://firebaseio.com" />
-
-  <!-- Google Fonts — Inter (display=swap prevents FOIT, improves LCP) -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
-  <!-- GitHub Pages SPA redirect script -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Smurf - Loading...</title>
   <script>
+    // GitHub Pages SPA redirect — canonical spa-github-pages technique
+    // pathSegmentsToKeep=1 matches base /The-Smurf/ (one segment to preserve).
+    // Converts: /The-Smurf/watch-party/room/xyz
+    //       to: /The-Smurf/?/watch-party/room/xyz
+    // Then index.html restores the original path before React Router mounts.
     (function (l) {
-      if (l.search[1] === '/') {
-        var decoded = l.search.slice(1).split('&').map(function (s) {
-          return s.replace(/~and~/g, '&')
-        }).join('?');
-        window.history.replaceState(null, null,
-          l.pathname.slice(0, -1) + decoded + l.hash
-        );
-      }
-    }(window.location))
+      var pathSegmentsToKeep = 1;
+      var p = l.pathname.split('/');
+      window.location.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        p.slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+        p.slice(1 + pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    }(window.location));
   </script>
-  <script type="module" crossorigin src="/The-Smurf/assets/index-Dn_Kuz1n.js"></script>
-  <link rel="modulepreload" crossorigin href="/The-Smurf/assets/vendor-DzkLAN9u.js">
-  <link rel="stylesheet" crossorigin href="/The-Smurf/assets/index-ButSP-uG.css">
 </head>
 
 <body>
-  <div id="root"></div>
+  <div
+    style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; background: #0a0a1a; color: #fff;">
+    <h2>Đang tải...</h2>
+  </div>
 </body>
 
 </html>
