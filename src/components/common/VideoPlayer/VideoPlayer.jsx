@@ -1,9 +1,10 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import Hls from 'hls.js';
 import {
-    FiPlay, FiPause, FiVolume2, FiVolumeX,
+    FiPlay, FiPause, FiVolume2, FiVolumeX, FiVolume1,
     FiMaximize, FiMinimize,
-    FiSkipForward, FiSkipBack
+    FiSkipForward, FiSkipBack,
+    FiChevronUp, FiChevronDown
 } from 'react-icons/fi';
 import styles from './VideoPlayer.module.css';
 
@@ -147,6 +148,14 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) =
                     e.preventDefault();
                     seek(10);
                     break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    adjustVolume(0.1);
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    adjustVolume(-0.1);
+                    break;
                 default:
                     break;
             }
@@ -193,6 +202,16 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) =
         const newMuted = !muted;
         setMuted(newMuted);
         v.muted = newMuted;
+    };
+
+    const adjustVolume = (delta) => {
+        const v = videoRef.current;
+        if (!v) return;
+        const newVol = Math.max(0, Math.min(1, v.volume + delta));
+        setVolume(newVol);
+        setMuted(newVol === 0);
+        v.volume = newVol;
+        v.muted = newVol === 0;
     };
 
     const toggleFullscreen = () => {
@@ -257,6 +276,7 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) =
                 <span>Space: Dừng/Phát</span>
                 <span>F: Toàn màn hình</span>
                 <span>← →: ±10s</span>
+                <span>↑ ↓: Âm lượng</span>
             </div>
 
             {/* Controls overlay */}
@@ -287,8 +307,8 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) =
                         </button>
 
                         <div className={styles.volumeControl}>
-                            <button className={styles.controlBtn} onClick={toggleMute}>
-                                {muted || volume === 0 ? <FiVolumeX size={18} /> : <FiVolume2 size={18} />}
+                            <button className={styles.controlBtn} onClick={toggleMute} title="Tắt/Bật tiếng">
+                                {muted || volume === 0 ? <FiVolumeX size={18} /> : volume < 0.5 ? <FiVolume1 size={18} /> : <FiVolume2 size={18} />}
                             </button>
                             <input
                                 type="range"
@@ -299,6 +319,12 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) =
                                 onChange={handleVolume}
                                 className={styles.volumeSlider}
                             />
+                            <button className={styles.controlBtn} onClick={() => adjustVolume(-0.1)} title="Giảm âm lượng (↓)">
+                                <FiChevronDown size={18} />
+                            </button>
+                            <button className={styles.controlBtn} onClick={() => adjustVolume(0.1)} title="Tăng âm lượng (↑)">
+                                <FiChevronUp size={18} />
+                            </button>
                         </div>
 
                         <span className={styles.timeDisplay}>

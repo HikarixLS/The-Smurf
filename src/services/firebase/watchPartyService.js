@@ -1,5 +1,5 @@
 import {
-    ref, push, set, get, update, remove, onValue, off,
+    ref, push, set, get, update, remove, onValue,
     onDisconnect,
     serverTimestamp, query, orderByChild, limitToLast
 } from 'firebase/database';
@@ -7,6 +7,16 @@ import { database, isFirebaseConfigured, getCurrentUser } from './config';
 
 const ROOMS_REF = 'watchPartyRooms';
 const MESSAGES_REF = 'watchPartyMessages';
+
+// ── Server time offset (live) ──
+// Keeps the delta between client clock and Firebase server clock always fresh.
+// serverTime ≈ Date.now() + _serverTimeOffset
+let _serverTimeOffset = 0;
+if (database) {
+    onValue(ref(database, '.info/serverTimeOffset'), (snap) => {
+        _serverTimeOffset = snap.val() ?? 0;
+    });
+}
 
 // Generate a random display name
 const generateName = () => {
@@ -48,8 +58,20 @@ export const watchPartyService = {
         return session;
     },
 
+    /**
+     * Returns the current time corrected by Firebase server offset.
+     * All sync calculations should use this instead of Date.now().
+     */
+    getTrueTime: () => Date.now() + _serverTimeOffset,
+
+    /**
+     * @deprecated Use getTrueTime() for live-synced values.
+     * Kept for backward compatibility — returns the current offset via Promise.
+     */
+    getServerTimeOffset: () => Promise.resolve(_serverTimeOffset),
+
     // Create a new Watch Party room
-    createRoom: async ({ movieSlug, movieName, movieThumb }) => {
+    createRoom: async ({ movieSlug, movieName, movieOriginName, movieThumb }) => {
         if (!database) throw new Error('Firebase chưa được cấu hình');
         const session = getSession();
 
@@ -58,6 +80,7 @@ export const watchPartyService = {
             id: roomRef.key,
             movieSlug,
             movieName,
+            movieOriginName: movieOriginName || movieName,
             movieThumb: movieThumb || '',
             hostId: session.id,
             hostName: session.name,
@@ -68,6 +91,7 @@ export const watchPartyService = {
                 isPlaying: false,
                 episode: 0,
                 server: 0,
+                playbackRate: 1,
                 updatedAt: Date.now(),
             },
             members: {
@@ -184,32 +208,35 @@ export const watchPartyService = {
     onRoomsUpdate: (callback) => {
         if (!database) return () => { };
         const roomsRef = ref(database, ROOMS_REF);
-        onValue(roomsRef, (snapshot) => {
+        const unsub = onValue(roomsRef, (snapshot) => {
             const rooms = [];
             if (snapshot.exists()) {
                 snapshot.forEach((child) => rooms.push({ ...child.val(), id: child.key }));
             }
             callback(rooms.sort((a, b) => b.createdAt - a.createdAt));
         });
-        return () => off(roomsRef);
+        return unsub;
     },
 
     // Subscribe to a specific room
     onRoomUpdate: (roomId, callback) => {
         if (!database) return () => { };
         const roomRef = ref(database, `${ROOMS_REF}/${roomId}`);
-        onValue(roomRef, (snapshot) => {
+        const unsub = onValue(roomRef, (snapshot) => {
             callback(snapshot.exists() ? snapshot.val() : null);
         });
-        return () => off(roomRef);
+        return unsub;
     },
 
-    // Update playback state (Host only — guards in WatchPartyRoom.jsx)
+    /**
+     * Update playback state (Host only — guards in WatchPartyRoom.jsx).
+     * `updatedAt` uses serverTimestamp() so all clients share a common clock.
+     */
     syncPlayback: async (roomId, playbackData) => {
         if (!database) return;
         await update(ref(database, `${ROOMS_REF}/${roomId}/playback`), {
             ...playbackData,
-            updatedAt: Date.now(),
+            updatedAt: serverTimestamp(),
         });
     },
 
@@ -257,14 +284,14 @@ export const watchPartyService = {
             orderByChild('timestamp'),
             limitToLast(100)
         );
-        onValue(msgsRef, (snapshot) => {
+        const unsub = onValue(msgsRef, (snapshot) => {
             const messages = [];
             if (snapshot.exists()) {
                 snapshot.forEach((child) => messages.push({ ...child.val(), id: child.key }));
             }
             callback(messages);
         });
-        return () => off(msgsRef);
+        return unsub;
     },
 
     // Delete a room (Host only)

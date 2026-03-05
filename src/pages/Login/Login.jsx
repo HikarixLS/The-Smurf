@@ -28,8 +28,9 @@ const Login = () => {
         try {
             await signIn();
         } catch (err) {
-            setError('Đăng nhập thất bại. Vui lòng thử lại.');
-            console.error(err);
+            console.error('Sign-in error:', err);
+            const msg = err?.message || err?.code || JSON.stringify(err);
+            setError(`Lỗi: ${msg}`);
         } finally {
             setSigningIn(false);
         }

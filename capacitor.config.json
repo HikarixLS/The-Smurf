@@ -1,0 +1,8 @@
+{
+    "appId": "com.thesmurf.app",
+    "appName": "The Smurf",
+    "webDir": "dist",
+    "server": {
+        "androidScheme": "https"
+    }
+}

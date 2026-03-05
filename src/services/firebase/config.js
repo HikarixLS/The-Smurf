@@ -1,6 +1,14 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+import {
+    initializeAuth,
+    indexedDBLocalPersistence,
+    browserPopupRedirectResolver,
+    GoogleAuthProvider,
+    signInWithPopup,
+    onAuthStateChanged,
+    signOut as firebaseSignOut,
+} from 'firebase/auth';
 import { getAnalytics, logEvent, setUserId, setUserProperties } from 'firebase/analytics';
 
 const firebaseConfig = {
@@ -31,7 +39,10 @@ if (isFirebaseConfigured()) {
     try {
         app = initializeApp(firebaseConfig);
         database = getDatabase(app);
-        auth = getAuth(app);
+        auth = initializeAuth(app, {
+            persistence: indexedDBLocalPersistence,
+            popupRedirectResolver: browserPopupRedirectResolver,
+        });
         // Initialize Google Analytics (GA4)
         if (typeof window !== 'undefined') {
             analytics = getAnalytics(app);
@@ -71,11 +82,35 @@ export const setAnalyticsUser = (user) => {
 // Google sign-in
 const googleProvider = new GoogleAuthProvider();
 
+// Detect if running in Capacitor (native Android/iOS)
+const isNative = () => {
+    return typeof window !== 'undefined' &&
+        window.Capacitor !== undefined &&
+        window.Capacitor.isNativePlatform();
+};
+
 export const signInWithGoogle = async () => {
     if (!auth) return null;
     try {
-        const result = await signInWithPopup(auth, googleProvider);
-        return result.user;
+        if (isNative()) {
+            // Native Google Sign-In via @capacitor-firebase/authentication
+            // Avoids sessionStorage/popup issues on Android WebView
+            const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+            const result = await FirebaseAuthentication.signInWithGoogle();
+            // Get the credential from the native result
+            const credential = GoogleAuthProvider.credential(
+                result.credential?.idToken,
+                result.credential?.accessToken
+            );
+            // Sign in to Firebase with the native credential
+            const { signInWithCredential } = await import('firebase/auth');
+            const userCredential = await signInWithCredential(auth, credential);
+            return userCredential.user;
+        } else {
+            // Web: use popup flow as usual
+            const result = await signInWithPopup(auth, googleProvider);
+            return result.user;
+        }
     } catch (error) {
         console.error('Google sign-in error:', error);
         throw error;

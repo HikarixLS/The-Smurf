@@ -53,9 +53,11 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+const baseName = import.meta.env.VITE_PLATFORM === 'android' ? '/' : '/The-Smurf';
+
 const AppRouter = () => {
   return (
-    <BrowserRouter basename="/The-Smurf">
+    <BrowserRouter basename={baseName}>
       <CursorGlow />
       <AuthProvider>
         <AnalyticsTracker />
