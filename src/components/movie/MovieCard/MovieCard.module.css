@@ -1,3 +1,5 @@
+/* ── MovieCard: fixed total height so ALL cards are perfectly equal ──────── */
+
 .movieCard {
   cursor: pointer;
   transition: all 0.3s ease;
@@ -8,6 +10,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 360px; /* Fixed total height → rows are perfectly uniform */
 }
 
 .movieCard:hover {
@@ -17,14 +20,15 @@
   z-index: 10;
 }
 
+/* ── Poster ── */
 .posterContainer {
   position: relative;
   width: 100%;
-  aspect-ratio: 2/3;
+  flex: 1;       /* fills all space above the info bar */
+  min-height: 0; /* allow flex child to shrink */
   overflow: hidden;
   border-radius: 12px 12px 0 0;
   background: #181828;
-  flex-shrink: 0;
 }
 
 .poster {
@@ -50,6 +54,7 @@
   opacity: 1;
 }
 
+/* ── Play overlay ── */
 .playOverlay {
   position: absolute;
   inset: 0;
@@ -83,7 +88,7 @@
   transform: scale(1.1);
 }
 
-/* Badges */
+/* ── Badges ── */
 .badges {
   position: absolute;
   top: 8px;
@@ -121,21 +126,23 @@
   margin-top: 4px;
 }
 
-/* Info */
+/* ── Info — FIXED height so every card is identical ── */
 .info {
-  padding: 10px 12px 12px;
-  flex: 1;
+  height: 110px;
+  flex-shrink: 0;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-height: 80px;
+  gap: 3px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .title {
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text-primary, #fff);
-  margin: 0 0 6px;
+  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -146,16 +153,25 @@
   color: var(--color-accent, #667eea);
 }
 
+.subTitle {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
+}
+
 .meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 6px;
 }
 
 .year {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-text-muted, rgba(255, 255, 255, 0.5));
 }
 
@@ -163,7 +179,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 13px;
+  font-size: 12px;
   color: #ffc107;
   font-weight: 600;
 }
@@ -182,35 +198,30 @@
   background: rgba(255, 255, 255, 0.06);
   padding: 2px 8px;
   border-radius: 4px;
-}
-
-.subTitle {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
-  margin: -2px 0 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
-  font-style: italic;
+  flex-shrink: 0;
 }
 
-/* Mobile */
+/* ── Mobile ── */
 @media (max-width: 640px) {
-  .posterContainer {
-    aspect-ratio: unset;
-    height: 180px;
+  .movieCard {
+    height: 260px;
   }
-  .title {
-    font-size: 13px;
-  }
+
   .info {
+    height: 80px;
     padding: 8px;
-    min-height: 60px;
   }
+
+  .title {
+    font-size: 12px;
+  }
+
   .badge {
     font-size: 10px;
-    padding: 2px 6px;
+    padding: 2px 5px;
   }
+
   .movieCard:hover {
     transform: none;
   }
