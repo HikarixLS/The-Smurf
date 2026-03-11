@@ -144,6 +144,12 @@ const AIAssistant = () => {
                     role: 'error',
                     text: '⚠️ Chưa cấu hình Gemini API Key. Vui lòng thêm VITE_GEMINI_API_KEY vào file .env.local rồi restart dev server.',
                 }]);
+            } else if (err.message === 'RATE_LIMITED') {
+                setMessages(prev => [...prev, {
+                    id: Date.now() + 1,
+                    role: 'error',
+                    text: '⏳ API đang bận (quá nhiều yêu cầu). Vui lòng chờ 30 giây và thử lại — đây là giới hạn của Gemini miễn phí.',
+                }]);
             } else {
                 setMessages(prev => [...prev, {
                     id: Date.now() + 1,

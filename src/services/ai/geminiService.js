@@ -4,8 +4,9 @@
  */
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-const STREAM_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent';
+const BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash';
+const API_URL = `${BASE}:generateContent`;
+const STREAM_URL = `${BASE}:streamGenerateContent`;
 
 /** System prompt for movie assistant */
 const SYSTEM_PROMPT = `Bạn là trợ lý phim thông minh của The Smurf - một trang web xem phim tiếng Việt.
@@ -48,30 +49,47 @@ const parseAIResponse = (text) => {
  * @param {Array} messages - Chat history [{role: 'user'|'model', parts: [{text}]}]
  * @returns {Promise<{message, searches, suggestions}>}
  */
-export const getMovieRecommendations = async (messages) => {
+export const getMovieRecommendations = async (messages, retries = 2) => {
     if (!API_KEY || API_KEY === 'your_gemini_api_key_here') {
         throw new Error('GEMINI_API_KEY_MISSING');
     }
 
     const contents = [
         { role: 'user', parts: [{ text: SYSTEM_PROMPT }] },
-        { role: 'model', parts: [{ text: '{"message":"Xin chào! Tôi sẵn sàng giúp bạn tìm phim.","searches":[],"suggestions":["Gợi ý phim hành động hay","Phim Hàn Quốc lãng mạn","Phim kinh dị Nhật Bản"]}' }] },
+        { role: 'model', parts: [{ text: '{"message":"Xin ch\u00e0o! T\u00f4i s\u1eb5n s\u00e0ng gi\u00fap b\u1ea1n t\u00ecm phim.","searches":[],"suggestions":["G\u1ee3i \u00fd phim h\u00e0nh \u0111\u1ed9ng hay","Phim H\u00e0n Qu\u1ed1c l\u00e3ng m\u1ea1n","Phim kinh d\u1ecb Nh\u1eadt B\u1ea3n"]}' }] },
         ...messages,
     ];
 
-    const res = await fetch(`${API_URL}?key=${API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents,
-            generationConfig: { temperature: 0.7, maxOutputTokens: 512 },
-        }),
-    });
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        const res = await fetch(`${API_URL}?key=${API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents,
+                generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 1024,
+                    // Disable thinking for faster/cheaper responses on free tier
+                    thinkingConfig: { thinkingBudget: 0 },
+                },
+            }),
+        });
 
-    if (!res.ok) throw new Error(`Gemini API error: ${res.status}`);
-    const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    return parseAIResponse(text);
+        if (res.status === 429 && attempt < retries) {
+            // Rate limited — wait and retry
+            await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+            continue;
+        }
+        if (res.status === 429) throw new Error('RATE_LIMITED');
+        if (!res.ok) throw new Error(`Gemini API error: ${res.status}`);
+        const data = await res.json();
+        // Gemini 2.5 thinking mode returns multiple parts — skip thought parts, get last text part
+        const parts = data.candidates?.[0]?.content?.parts || [];
+        const textPart = parts.filter(p => !p.thought && p.text).pop();
+        const text = textPart?.text || '';
+        return parseAIResponse(text);
+    }
+    throw new Error('Gemini API rate limited after retries');
 };
 
 /**
