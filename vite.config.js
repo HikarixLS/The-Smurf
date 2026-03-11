@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       cssCodeSplit: true,
       reportCompressedSize: false,
-      chunkSizeWarningLimit: 600,
+      chunkSizeWarningLimit: 550,
       // Strip console.log in production
       minify: 'esbuild',
       target: 'es2015',
@@ -30,14 +30,30 @@ export default defineConfig(({ mode }) => {
         output: {
           // Fine-grained chunk splitting for better caching & smaller initial load
           manualChunks(id) {
-            // HLS.js — heavy video library, keep separate for lazy loading
-            if (id.includes('node_modules/hls.js/')) {
+            // HLS.js — heavy video library, separate for lazy loading
+            if (id.includes('node_modules/hls.js')) {
               return 'vendor-hls';
             }
-            // All other node_modules go into a single vendor chunk
-            // to avoid React createContext load-ordering errors
+            // React ecosystem (react, react-dom, react-router-dom, scheduler)
+            if (
+              id.includes('node_modules/react/') ||
+              id.includes('node_modules/react-dom/') ||
+              id.includes('node_modules/react-router') ||
+              id.includes('node_modules/scheduler/')
+            ) {
+              return 'vendor-react';
+            }
+            // Firebase — large but rarely changes
+            if (id.includes('node_modules/firebase/') || id.includes('node_modules/@firebase/')) {
+              return 'vendor-firebase';
+            }
+            // Icons — large icon packs
+            if (id.includes('node_modules/react-icons/')) {
+              return 'vendor-icons';
+            }
+            // Everything else (framer-motion, etc.)
             if (id.includes('node_modules/')) {
-              return 'vendor';
+              return 'vendor-misc';
             }
           },
           // Content-hash filenames for long-term cache
