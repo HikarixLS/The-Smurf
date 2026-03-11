@@ -1,8 +1,8 @@
 .movieGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--spacing-lg);
-  margin: var(--spacing-xl) 0;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--spacing-lg, 20px);
+  margin: var(--spacing-xl, 24px) 0;
 }
 
 .loading {
@@ -109,9 +109,15 @@
   }
 }
 
-@media (min-width: 640px) and (max-width: 1024px) {
+@media (min-width: 480px) {
   .movieGrid {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .movieGrid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -121,8 +127,20 @@
   }
 }
 
-@media (min-width: 1440px) {
+@media (min-width: 1280px) {
   .movieGrid {
     grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+@media (min-width: 1440px) {
+  .movieGrid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
+
+@media (min-width: 1920px) {
+  .movieGrid {
+    grid-template-columns: repeat(8, 1fr);
   }
 }

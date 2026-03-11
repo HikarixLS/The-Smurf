@@ -1,6 +1,7 @@
 .profile {
   min-height: 100vh;
-  padding: var(--spacing-xl) 0;
+  padding: var(--spacing-xl) 4%;
+  padding-top: calc(80px + var(--spacing-xl, 32px));
 }
 
 .title {
