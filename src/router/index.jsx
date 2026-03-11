@@ -12,6 +12,7 @@ import { logPageView } from '@/services/firebase/config';
 import Loader from '@/components/common/Loader/Loader';
 import CursorGlow from '@/components/common/CursorGlow/CursorGlow';
 import { ToastProvider } from '@/services/toast/ToastContext';
+import AIAssistant from '@/components/common/AIAssistant/AIAssistant';
 
 // Lazy loaded pages
 const Home = lazy(() => import('@/pages/Home/Home'));
@@ -61,6 +62,7 @@ const AppRouter = () => {
     <BrowserRouter basename={baseName}>
       <ToastProvider>
         <CursorGlow />
+        <AIAssistant />
         <AuthProvider>
           <AnalyticsTracker />
           <Suspense fallback={<PageLoader />}>

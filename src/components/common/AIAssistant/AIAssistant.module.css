@@ -1,0 +1,414 @@
+/* ── Floating Action Button ──────────────────────────────────────────────── */
+.fab {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 18px;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 700;
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.5);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    overflow: visible;
+}
+
+.fab:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.7);
+}
+
+.fabOpen {
+    border-radius: 50%;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.fabLabel {
+    font-size: 13px;
+    letter-spacing: 0.5px;
+}
+
+/* Animated pulse ring */
+.fabPulse {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50px;
+    border: 2px solid rgba(102, 126, 234, 0.6);
+    animation: pulse 2s ease-out infinite;
+    pointer-events: none;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 0.8; }
+    100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* ── Chat Panel ──────────────────────────────────────────────────────────── */
+.panel {
+    position: fixed;
+    bottom: 90px;
+    right: 28px;
+    z-index: 9998;
+    width: 400px;
+    max-height: 600px;
+    display: flex;
+    flex-direction: column;
+    background: rgba(14, 14, 24, 0.96);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(102, 126, 234, 0.2);
+    animation: panelIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    overflow: hidden;
+}
+
+@keyframes panelIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Panel Header ─────────────────────────────────────────────────────────── */
+.panelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    flex-shrink: 0;
+}
+
+.panelHeaderLeft {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.aiAvatar {
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.panelTitle {
+    font-weight: 700;
+    font-size: 15px;
+    color: #fff;
+    margin: 0;
+}
+
+.panelSub {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.45);
+    margin: 2px 0 0;
+}
+
+.panelClose {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 8px;
+    transition: all 0.2s;
+    display: flex;
+}
+.panelClose:hover { color: #fff; background: rgba(255,255,255,0.08); }
+
+/* ── Messages area ───────────────────────────────────────────────────────── */
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+
+.messages::-webkit-scrollbar { width: 4px; }
+.messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+/* ── Message wrapper ─────────────────────────────────────────────────────── */
+.msgWrapper {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.msgWrapper.user {
+    flex-direction: row-reverse;
+}
+
+.msgWrapper.error {
+    flex-direction: row;
+}
+
+.msgAvatar {
+    width: 30px;
+    height: 30px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.msgBubble {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.assistant .msgBubble {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 4px 16px 16px 16px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.user .msgBubble {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 16px 4px 16px 16px;
+    color: white;
+}
+
+.error .msgBubble {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 4px 16px 16px 16px;
+    color: #fca5a5;
+}
+
+.msgText {
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+/* ── Movie grid inside message ───────────────────────────────────────────── */
+.movieGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.miniCard {
+    display: flex;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.miniCard:hover {
+    background: rgba(102, 126, 234, 0.12);
+    border-color: rgba(102, 126, 234, 0.3);
+    transform: translateX(2px);
+}
+
+.miniPoster {
+    width: 44px;
+    height: 66px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.miniInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.miniTitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.miniSub {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    margin: 0 0 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-style: italic;
+}
+
+.miniMeta {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    align-items: center;
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+}
+
+.miniQuality {
+    background: rgba(102, 126, 234, 0.3);
+    color: #a5b4fc;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.miniLang {
+    background: rgba(16, 185, 129, 0.25);
+    color: #6ee7b7;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+/* ── Suggestion chips ────────────────────────────────────────────────────── */
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.chip {
+    background: rgba(102, 126, 234, 0.12);
+    border: 1px solid rgba(102, 126, 234, 0.25);
+    color: #a5b4fc;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.chip:hover {
+    background: rgba(102, 126, 234, 0.25);
+    border-color: rgba(102, 126, 234, 0.5);
+    color: #fff;
+}
+
+/* ── Typing dots ─────────────────────────────────────────────────────────── */
+.typingDots {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    padding: 2px 0;
+}
+
+.typingDots span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(102, 126, 234, 0.7);
+    animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.typingDots span:nth-child(2) { animation-delay: 0.2s; }
+.typingDots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+    40% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ── Input bar ───────────────────────────────────────────────────────────── */
+.inputBar {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 12px 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
+}
+
+.inputField {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 10px 14px;
+    color: white;
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    max-height: 100px;
+    line-height: 1.5;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+.inputField::placeholder { color: rgba(255,255,255,0.3); }
+.inputField:focus { border-color: rgba(102, 126, 234, 0.5); }
+
+.sendBtn {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.sendBtn:hover:not(:disabled) { transform: scale(1.05); opacity: 0.9; }
+.sendBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+    .fab {
+        bottom: 20px;
+        right: 16px;
+    }
+
+    .panel {
+        bottom: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+        max-height: 85dvh;
+        border-radius: 20px 20px 0 0;
+        animation: panelInMobile 0.3s ease forwards;
+    }
+
+    @keyframes panelInMobile {
+        from { opacity: 0; transform: translateY(100%); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+}
