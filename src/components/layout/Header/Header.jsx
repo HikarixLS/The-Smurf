@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiUser, FiMenu, FiX, FiChevronDown, FiMonitor } from 'react-icons/fi';
+import { FiUser, FiMenu, FiX, FiChevronDown, FiMonitor, FiSearch } from 'react-icons/fi';
 import SearchBar from '@/components/search/SearchBar/SearchBar';
 import styles from './Header.module.css';
 
@@ -162,6 +162,10 @@ const Header = () => {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className={styles.mobileMenu}>
+          {/* Search bar in mobile menu */}
+          <div className={styles.mobileSearchWrapper}>
+            <SearchBar />
+          </div>
           <Link to="/" className={styles.mobileLink} onClick={() => setMobileMenuOpen(false)}>Trang chủ</Link>
           <Link to="/browse?type=series" className={styles.mobileLink} onClick={() => setMobileMenuOpen(false)}>Phim bộ</Link>
           <Link to="/browse?type=single" className={styles.mobileLink} onClick={() => setMobileMenuOpen(false)}>Phim lẻ</Link>

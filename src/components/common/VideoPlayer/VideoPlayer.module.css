@@ -76,8 +76,15 @@
 }
 
 @keyframes fadeSlideIn {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* Buffering overlay */
@@ -108,7 +115,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Keyboard hints */
@@ -241,6 +250,12 @@
 .controlBtn:hover {
   background: rgba(255, 255, 255, 0.15);
 }
+
+.pipActive {
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.15);
+}
+
 
 .seekLabel {
   position: absolute;

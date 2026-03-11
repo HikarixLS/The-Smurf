@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { FiArrowLeft, FiMonitor, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import Header from '@/components/layout/Header/Header';
@@ -8,7 +8,7 @@ import MovieRow from '@/components/home/MovieRow/MovieRow';
 import Loader from '@/components/common/Loader/Loader';
 import { movieService } from '@/services/api/movieService';
 import { useAuth } from '@/services/firebase/AuthContext';
-import { addToHistory } from '@/services/firebase/watchlistService';
+import { addToHistory, saveWatchProgress, getWatchProgress } from '@/services/firebase/watchlistService';
 import styles from './Watch.module.css';
 
 const Watch = () => {
@@ -25,10 +25,35 @@ const Watch = () => {
   const [currentServer, setCurrentServer] = useState(0);
   const [relatedMovies, setRelatedMovies] = useState([]);
   const [showEpisodes, setShowEpisodes] = useState(true);
+  const [savedProgress, setSavedProgress] = useState(null); // tiến trình đọc từ Firebase
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
+  const [resumeTime, setResumeTime] = useState(0); // thời gian seek khi tiếp tục
+
+  // Refs để throttle lưu tiến trình (5 giây/lần)
+  const lastSaveRef = useRef(0);
+  const latestProgressRef = useRef(null); // lưu progress mới nhất để dùng khi unmount
+
 
   useEffect(() => {
     fetchMovieDetail();
   }, [slug]);
+
+  // Đọc tiến trình đã lưu khi load phim — hiển thị dialog nếu có
+  useEffect(() => {
+    if (!user || !slug) return;
+    setSavedProgress(null);
+    setShowResumeDialog(false);
+    setResumeTime(0);
+    getWatchProgress(user.uid, slug).then(progress => {
+      if (progress) {
+        setSavedProgress(progress);
+        // Chỉ hỏi nếu đúng tập đang xem
+        if (progress.episodeIndex === currentEpisode && progress.serverIndex === currentServer) {
+          setShowResumeDialog(true);
+        }
+      }
+    }).catch(() => { });
+  }, [user, slug]);
 
   // Track watch history
   useEffect(() => {
@@ -37,6 +62,36 @@ const Watch = () => {
       addToHistory(user.uid, { ...movie, slug }).catch(() => { });
     }
   }, [user, movie]);
+
+  // Lưu tiến trình khi unmount (rời trang)
+  useEffect(() => {
+    return () => {
+      if (user && slug && latestProgressRef.current) {
+        const { currentTime, duration } = latestProgressRef.current;
+        saveWatchProgress(user.uid, slug, {
+          currentTime, duration,
+          episodeIndex: currentEpisode,
+          serverIndex: currentServer,
+        }).catch(() => { });
+      }
+    };
+  }, [user, slug, currentEpisode, currentServer]);
+
+  // Callback nhận progress từ VideoPlayer - throttle 5 giây
+  const handleProgress = useCallback(({ currentTime, duration }) => {
+    latestProgressRef.current = { currentTime, duration };
+    const now = Date.now();
+    if (now - lastSaveRef.current < 5000) return;
+    lastSaveRef.current = now;
+    if (user && slug) {
+      saveWatchProgress(user.uid, slug, {
+        currentTime, duration,
+        episodeIndex: currentEpisode,
+        serverIndex: currentServer,
+      }).catch(() => { });
+    }
+  }, [user, slug, currentEpisode, currentServer]);
+
 
   const fetchMovieDetail = async () => {
     setLoading(true);
@@ -104,10 +159,54 @@ const Watch = () => {
           {/* Video Player */}
           <div className={styles.playerSection}>
             <div className={styles.playerWrapper}>
-              {currentVideo?.link_m3u8 ? (
+              {/* Resume dialog */}
+              {showResumeDialog && savedProgress && (
+                <div className={styles.resumeDialog}>
+                  <div className={styles.resumeDialogBox}>
+                    <p className={styles.resumeTitle}>Bạn đã xem đến</p>
+                    <p className={styles.resumeTime}>
+                      {Math.floor(savedProgress.currentTime / 60)}:{String(Math.floor(savedProgress.currentTime % 60)).padStart(2, '0')}
+                      {savedProgress.duration > 0 && (
+                        <span className={styles.resumePct}> &bull; {Math.round(savedProgress.percent * 100)}%</span>
+                      )}
+                    </p>
+                    <div className={styles.resumeActions}>
+                      <button
+                        className={styles.resumeContinueBtn}
+                        onClick={() => {
+                          setResumeTime(savedProgress.currentTime);
+                          setShowResumeDialog(false);
+                        }}
+                      >
+                        ▶ Xem tiếp
+                      </button>
+                      <button
+                        className={styles.resumeRestartBtn}
+                        onClick={() => {
+                          setResumeTime(0);
+                          setShowResumeDialog(false);
+                        }}
+                      >
+                        ↺ Xem lại từ đầu
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {currentVideo?.link_m3u8 && !showResumeDialog ? (
                 <VideoPlayer
                   src={currentVideo.link_m3u8}
                   poster={movie.poster_url || movie.thumb_url}
+                  initialTime={resumeTime}
+                  onProgress={handleProgress}
+                />
+              ) : currentVideo?.link_m3u8 ? (
+                // Dialog đang hiển thị — hiển poster chờ
+                <img
+                  src={movie.poster_url || movie.thumb_url}
+                  alt={movie.name}
+                  className={styles.posterPlaceholder}
                 />
               ) : currentVideo?.link_embed ? (
                 <iframe
@@ -124,6 +223,7 @@ const Watch = () => {
               )}
             </div>
           </div>
+
 
           {/* Server selector */}
           {servers.length > 1 && (

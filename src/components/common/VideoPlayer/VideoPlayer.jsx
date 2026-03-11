@@ -4,11 +4,12 @@ import {
     FiPlay, FiPause, FiVolume2, FiVolumeX, FiVolume1,
     FiMaximize, FiMinimize,
     FiSkipForward, FiSkipBack,
-    FiChevronUp, FiChevronDown
+    FiChevronUp, FiChevronDown,
+    FiSquare,
 } from 'react-icons/fi';
 import styles from './VideoPlayer.module.css';
 
-const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) => {
+const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp, initialTime = 0, onProgress }) => {
     const videoRef = useRef(null);
     const hlsRef = useRef(null);
     const containerRef = useRef(null);
@@ -20,6 +21,7 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) =
     const [volume, setVolume] = useState(1);
     const [muted, setMuted] = useState(false);
     const [fullscreen, setFullscreen] = useState(false);
+    const [isPiP, setIsPiP] = useState(false);
     const [showControls, setShowControls] = useState(true);
     const [buffered, setBuffered] = useState(0);
     const [isBuffering, setIsBuffering] = useState(false);
@@ -42,6 +44,9 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) =
             hls.attachMedia(video);
 
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                if (initialTime > 0) {
+                    video.currentTime = initialTime;
+                }
                 video.play().catch(() => { });
             });
 
@@ -71,6 +76,7 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) =
         const onTimeUpdate = () => {
             setCurTime(video.currentTime);
             if (onTimeUpdateProp) onTimeUpdateProp(video.currentTime);
+            if (onProgress) onProgress({ currentTime: video.currentTime, duration: video.duration || 0 });
             if (video.buffered.length > 0) {
                 setBuffered(video.buffered.end(video.buffered.length - 1));
             }
@@ -122,6 +128,20 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) =
         };
         document.addEventListener('fullscreenchange', onFSChange);
         return () => document.removeEventListener('fullscreenchange', onFSChange);
+    }, []);
+
+    // Picture-in-Picture event listeners
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        const onEnterPiP = () => setIsPiP(true);
+        const onLeavePiP = () => setIsPiP(false);
+        video.addEventListener('enterpictureinpicture', onEnterPiP);
+        video.addEventListener('leavepictureinpicture', onLeavePiP);
+        return () => {
+            video.removeEventListener('enterpictureinpicture', onEnterPiP);
+            video.removeEventListener('leavepictureinpicture', onLeavePiP);
+        };
     }, []);
 
     // Keyboard shortcuts
@@ -221,6 +241,129 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) =
             document.exitFullscreen();
         } else {
             c.requestFullscreen();
+        }
+    };
+
+    const pipWindowRef = useRef(null);
+
+    const togglePiP = async () => {
+        const v = videoRef.current;
+        if (!v) return;
+
+        // Exit PiP if already active
+        if (pipWindowRef.current && !pipWindowRef.current.closed) {
+            pipWindowRef.current.close();
+            pipWindowRef.current = null;
+            return;
+        }
+        if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture().catch(() => { });
+            return;
+        }
+
+        try {
+            // Use documentPictureInPicture API (Chrome 116+) for custom controls
+            if ('documentPictureInPicture' in window) {
+                const pipWin = await window.documentPictureInPicture.requestWindow({
+                    width: 480,
+                    height: 300,
+                });
+                pipWindowRef.current = pipWin;
+
+                // Copy stylesheets into PiP window
+                [...document.styleSheets].forEach(sheet => {
+                    try {
+                        const styleEl = pipWin.document.createElement('style');
+                        styleEl.textContent = [...sheet.cssRules].map(r => r.cssText).join('');
+                        pipWin.document.head.appendChild(styleEl);
+                    } catch { /* cross-origin sheets */ }
+                });
+
+                // Inject video element into PiP window
+                pipWin.document.body.style.cssText = 'm:0;p:0;background:#000;overflow:hidden;display:flex;flex-direction:column;height:100%';
+                const pipBody = pipWin.document.body;
+
+                // Video
+                pipBody.appendChild(v);
+
+                // Custom controls bar
+                const bar = pipWin.document.createElement('div');
+                bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;gap:8px;padding:8px 12px;background:linear-gradient(transparent,rgba(0,0,0,0.9));z-index:99';
+
+                const mkBtn = (label, fn) => {
+                    const b = pipWin.document.createElement('button');
+                    b.textContent = label;
+                    b.style.cssText = 'background:rgba(255,255,255,0.15);border:none;color:#fff;padding:6px 12px;border-radius:6px;font-size:16px;cursor:pointer;flex-shrink:0';
+                    b.onclick = fn;
+                    return b;
+                };
+
+                const playBtn = mkBtn(v.paused ? '▶' : '⏸', () => {
+                    v.paused ? v.play() : v.pause();
+                    playBtn.textContent = v.paused ? '▶' : '⏸';
+                });
+                v.addEventListener('play', () => { playBtn.textContent = '⏸'; });
+                v.addEventListener('pause', () => { playBtn.textContent = '▶'; });
+
+                // Seek buttons
+                const seekBack = mkBtn('⏪', () => {
+                    v.currentTime = Math.max(0, v.currentTime - 10);
+                });
+                seekBack.title = 'Lùi 10 giây';
+
+                const seekFwd = mkBtn('⏩', () => {
+                    v.currentTime = Math.min(v.duration || Infinity, v.currentTime + 10);
+                });
+                seekFwd.title = 'Tiến 10 giây';
+
+                const volDown = mkBtn('🔉', () => {
+                    v.volume = Math.max(0, v.volume - 0.1);
+                    setVolume(parseFloat(v.volume.toFixed(2)));
+                    volPct.textContent = Math.round(v.volume * 100) + '%';
+                });
+                const volUp = mkBtn('🔊', () => {
+                    v.volume = Math.min(1, v.volume + 0.1);
+                    setVolume(parseFloat(v.volume.toFixed(2)));
+                    volPct.textContent = Math.round(v.volume * 100) + '%';
+                });
+                const muteBtn = mkBtn(v.muted ? '🔇' : '🔈', () => {
+                    v.muted = !v.muted;
+                    muteBtn.textContent = v.muted ? '🔇' : '🔈';
+                    setMuted(v.muted);
+                });
+
+                // Volume percentage display
+                const volPct = pipWin.document.createElement('span');
+                volPct.textContent = Math.round(v.volume * 100) + '%';
+                volPct.style.cssText = 'color:rgba(255,255,255,0.75);font-size:11px;min-width:28px;text-align:center;flex-shrink:0';
+                v.addEventListener('volumechange', () => {
+                    volPct.textContent = v.muted ? '🔇' : Math.round(v.volume * 100) + '%';
+                });
+
+                // Time display
+                const timeEl = pipWin.document.createElement('span');
+                timeEl.style.cssText = 'color:rgba(255,255,255,0.8);font-size:12px;margin-left:auto;font-variant-numeric:tabular-nums';
+                const fmtT = s => { if (!s || isNaN(s)) return '0:00'; return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`; };
+                v.addEventListener('timeupdate', () => {
+                    timeEl.textContent = `${fmtT(v.currentTime)} / ${fmtT(v.duration)}`;
+                });
+
+                bar.append(seekBack, playBtn, seekFwd, volDown, muteBtn, volUp, volPct, timeEl);
+                pipBody.appendChild(bar);
+
+                // Restore video to player container when PiP closes
+                pipWin.addEventListener('pagehide', () => {
+                    containerRef.current?.appendChild(v);
+                    setIsPiP(false);
+                    pipWindowRef.current = null;
+                });
+                setIsPiP(true);
+            } else if (document.pictureInPictureEnabled) {
+                // Fallback: standard PiP (no custom controls)
+                await v.requestPictureInPicture();
+            }
+        } catch (e) {
+            console.warn('PiP error:', e);
         }
     };
 
@@ -334,6 +477,15 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp }) =
 
                     {/* Right controls */}
                     <div className={styles.controlsRight}>
+                        {document.pictureInPictureEnabled && (
+                            <button
+                                className={`${styles.controlBtn} ${isPiP ? styles.pipActive : ''}`}
+                                onClick={togglePiP}
+                                title="Picture-in-Picture"
+                            >
+                                <FiSquare size={16} />
+                            </button>
+                        )}
                         <button className={styles.controlBtn} onClick={toggleFullscreen} title="F: Toàn màn hình">
                             {fullscreen ? <FiMinimize size={18} /> : <FiMaximize size={18} />}
                         </button>

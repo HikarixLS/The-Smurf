@@ -1,6 +1,8 @@
 import { ref, set, get, remove, onValue, off } from 'firebase/database';
 import { database } from './config';
 
+const PROGRESS_REF = 'userWatchProgress';
+
 const WATCHLIST_REF = 'userWatchlists';
 const FAVORITES_REF = 'userFavorites';
 const HISTORY_REF = 'userHistory';
@@ -106,3 +108,38 @@ export const getHistory = async (userId) => {
     snapshot.forEach(child => items.push(child.val()));
     return items.sort((a, b) => b.watchedAt - a.watchedAt);
 };
+
+// ---- Watch Progress (Tiến trình xem) ----
+
+export const saveWatchProgress = async (userId, slug, { currentTime, duration, episodeIndex = 0, serverIndex = 0 }) => {
+    if (!database || !userId || !slug) return;
+    if (!duration || duration <= 0) return;
+    const percent = currentTime / duration;
+    // Nếu đã xem > 95% thì xóa tiến trình (coi như xem xong)
+    if (percent >= 0.95) {
+        await remove(ref(database, `${PROGRESS_REF}/${userId}/${slug}`));
+        return;
+    }
+    const itemRef = ref(database, `${PROGRESS_REF}/${userId}/${slug}`);
+    await set(itemRef, {
+        slug,
+        currentTime,
+        duration,
+        percent,
+        episodeIndex,
+        serverIndex,
+        savedAt: Date.now(),
+    });
+};
+
+export const getWatchProgress = async (userId, slug) => {
+    if (!database || !userId || !slug) return null;
+    const snapshot = await get(ref(database, `${PROGRESS_REF}/${userId}/${slug}`));
+    return snapshot.exists() ? snapshot.val() : null;
+};
+
+export const clearWatchProgress = async (userId, slug) => {
+    if (!database || !userId || !slug) return;
+    await remove(ref(database, `${PROGRESS_REF}/${userId}/${slug}`));
+};
+

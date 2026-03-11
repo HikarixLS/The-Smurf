@@ -8,17 +8,20 @@ import styles from './MovieCard.module.css';
 const MovieCard = ({ movie }) => {
   const navigate = useNavigate();
 
-  const handleClick = () => {
-    navigate(`/movie/${movie.slug}`);
-  };
-
   const posterUrl = getImageUrl(movie.poster_url || movie.thumb_url);
   const rating = movie.imdb?.rating || 0;
   const displayTitle = movie.origin_name || movie.name;
   const subTitle = movie.origin_name && movie.name !== movie.origin_name ? movie.name : '';
 
+  const handleClick = () => navigate(`/movie/${movie.slug}`);
+  const handlePlayClick = (e) => {
+    e.stopPropagation();
+    navigate(`/watch/${movie.slug}`);
+  };
+
   return (
     <div className={styles.movieCard} onClick={handleClick}>
+      {/* Poster */}
       <div className={styles.posterContainer}>
         <img
           src={posterUrl}
@@ -27,60 +30,40 @@ const MovieCard = ({ movie }) => {
           loading="lazy"
           width={300}
           height={450}
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = PLACEHOLDER_IMG;
-          }}
+          onError={(e) => { e.target.onerror = null; e.target.src = PLACEHOLDER_IMG; }}
         />
 
         <div className={styles.badges}>
           <div>
             {movie.quality && (
-              <span className={`${styles.badge} ${styles.quality}`}>
-                {movie.quality}
-              </span>
+              <span className={`${styles.badge} ${styles.quality}`}>{movie.quality}</span>
             )}
             {movie.lang && (
-              <span className={`${styles.badge} ${styles.lang}`}>
-                {movie.lang}
-              </span>
+              <span className={`${styles.badge} ${styles.lang}`}>{movie.lang}</span>
             )}
           </div>
           {movie.episode_current && (
-            <span className={`${styles.badge} ${styles.episode}`}>
-              {movie.episode_current}
-            </span>
+            <span className={`${styles.badge} ${styles.episode}`}>{movie.episode_current}</span>
           )}
         </div>
 
-        <div className={styles.playOverlay}>
-          <div className={styles.playIcon}>
-            <FiPlay />
-          </div>
+        <div className={styles.playOverlay} onClick={handlePlayClick}>
+          <div className={styles.playIcon}><FiPlay /></div>
         </div>
-
         <div className={styles.overlay} />
       </div>
 
       <div className={styles.info}>
         <h3 className={styles.title}>{displayTitle}</h3>
         {subTitle && <p className={styles.subTitle}>{subTitle}</p>}
-
         <div className={styles.meta}>
           {movie.year && <span className={styles.year}>{movie.year}</span>}
-          {rating > 0 && (
-            <div className={styles.rating}>
-              ⭐ {rating.toFixed(1)}
-            </div>
-          )}
+          {rating > 0 && <div className={styles.rating}>⭐ {rating.toFixed(1)}</div>}
         </div>
-
-        {movie.category && movie.category.length > 0 && (
+        {movie.category?.length > 0 && (
           <div className={styles.categories}>
-            {movie.category.slice(0, 3).map((cat, index) => (
-              <span key={index} className={styles.category}>
-                {cat.name}
-              </span>
+            {movie.category.slice(0, 3).map((cat, i) => (
+              <span key={i} className={styles.category}>{cat.name}</span>
             ))}
           </div>
         )}
@@ -99,9 +82,7 @@ MovieCard.propTypes = {
     lang: PropTypes.string,
     episode_current: PropTypes.string,
     year: PropTypes.number,
-    category: PropTypes.arrayOf(
-      PropTypes.shape({ name: PropTypes.string })
-    ),
+    category: PropTypes.arrayOf(PropTypes.shape({ name: PropTypes.string })),
     imdb: PropTypes.shape({ rating: PropTypes.number }),
   }).isRequired,
 };

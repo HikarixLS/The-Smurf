@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiHeart, FiClock, FiLogOut, FiBookmark } from 'react-icons/fi';
+import { FiUser, FiHeart, FiClock, FiLogOut, FiBookmark, FiPlay } from 'react-icons/fi';
 import { ref, onValue } from 'firebase/database';
 import { database } from '@/services/firebase/config';
 import Header from '@/components/layout/Header/Header';
@@ -15,6 +15,7 @@ const Profile = () => {
   const [favorites, setFavorites] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
   const [history, setHistory] = useState([]);
+  const [watchProgress, setWatchProgress] = useState({});
   const [loading, setLoading] = useState(true);
 
   // Track how many of the 3 listeners have fired at least once
@@ -61,10 +62,23 @@ const Profile = () => {
       markLoaded();
     });
 
+    // Realtime watch progress
+    const progressRef = ref(database, `userWatchProgress/${user.uid}`);
+    const unsubProgress = onValue(progressRef, snap => {
+      if (snap.exists()) {
+        const prog = {};
+        snap.forEach(child => { prog[child.key] = child.val(); });
+        setWatchProgress(prog);
+      } else {
+        setWatchProgress({});
+      }
+    });
+
     return () => {
       unsubFav();
       unsubWl();
       unsubHist();
+      unsubProgress();
     };
   }, [user]);
 
@@ -83,28 +97,46 @@ const Profile = () => {
     { icon: <FiClock />, label: 'Lịch sử xem', value: loading ? '—' : history.length.toString() },
   ];
 
-  const renderMovieList = (items) => {
+  const renderMovieList = (items, isHistory = false) => {
     if (!items || items.length === 0) return null;
     return (
       <div className={styles.movieList}>
-        {items.map((item, index) => (
-          <div
-            key={item.slug || index}
-            className={styles.movieItem}
-            onClick={() => item.slug && navigate(`/movie/${item.slug}`)}
-          >
-            <img
-              src={getImageUrl(item.thumb_url)}
-              alt={item.origin_name || item.name || ''}
-              className={styles.movieThumb}
-              onError={e => { e.target.onerror = null; e.target.src = PLACEHOLDER_IMG; }}
-            />
-            <div className={styles.movieItemInfo}>
-              <span className={styles.movieItemTitle}>{item.origin_name || item.name || 'Unknown'}</span>
-              {item.year && <span className={styles.movieItemYear}>{item.year}</span>}
+        {items.map((item, index) => {
+          const progress = isHistory ? watchProgress[item.slug] : null;
+          const pct = progress ? Math.round(progress.percent * 100) : 0;
+          return (
+            <div
+              key={item.slug || index}
+              className={styles.movieItem}
+              onClick={() => {
+                if (!item.slug) return;
+                navigate(isHistory ? `/watch/${item.slug}` : `/movie/${item.slug}`);
+              }}
+            >
+              <img
+                src={getImageUrl(item.thumb_url)}
+                alt={item.origin_name || item.name || ''}
+                className={styles.movieThumb}
+                onError={e => { e.target.onerror = null; e.target.src = PLACEHOLDER_IMG; }}
+              />
+              <div className={styles.movieItemInfo}>
+                <span className={styles.movieItemTitle}>{item.origin_name || item.name || 'Unknown'}</span>
+                {item.year && <span className={styles.movieItemYear}>{item.year}</span>}
+                {isHistory && progress && (
+                  <div className={styles.progressBarWrapper}>
+                    <div className={styles.progressBarFill} style={{ width: `${pct}%` }} />
+                    <span className={styles.progressLabel}>{pct}%</span>
+                  </div>
+                )}
+              </div>
+              {isHistory && (
+                <div className={styles.playIcon}>
+                  <FiPlay size={14} />
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
@@ -169,7 +201,7 @@ const Profile = () => {
             <h2 className={styles.sectionTitle}>🕐 Lịch sử xem {sectionCount(history.length)}</h2>
             {loading ? (
               <p className={styles.emptyState}>Đang tải...</p>
-            ) : history.length > 0 ? renderMovieList(history) : (
+            ) : history.length > 0 ? renderMovieList(history, true) : (
               <p className={styles.emptyState}>Chưa xem phim nào. Khám phá ngay!</p>
             )}
           </div>

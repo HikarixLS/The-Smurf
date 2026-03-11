@@ -4,7 +4,7 @@ import Hls from 'hls.js';
 import {
     FiArrowLeft, FiUsers, FiPlay, FiPause,
     FiCopy, FiCheck, FiEdit2,
-    FiVolume2, FiVolumeX, FiMaximize,
+    FiVolume2, FiVolumeX, FiMaximize, FiSquare,
 } from 'react-icons/fi';
 import Header from '@/components/layout/Header/Header';
 import { watchPartyService } from '@/services/firebase/watchPartyService';
@@ -16,6 +16,7 @@ import {
     estimateHostTime,
     allMembersReady,
 } from '@/services/watchParty/syncEngine';
+import { WPNotify } from '@/services/watchParty/watchPartyNotification';
 import styles from './WatchPartyRoom.module.css';
 
 const WatchPartyRoom = () => {
@@ -73,6 +74,7 @@ const WatchPartyRoom = () => {
         watchPartyService.updateName(name);
     }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
+
     // ── Join room & subscribe ──
     useEffect(() => {
         const displayName = user?.displayName || session.name;
@@ -84,6 +86,26 @@ const WatchPartyRoom = () => {
             if (!roomData) { navigate('/watch-party'); return; }
 
             const currentMembers = roomData.members || {};
+
+            // ── Detect member join/leave for notifications ──
+            if (prevMembersRef.current !== null) {
+                const prevIds = new Set(Object.keys(prevMembersRef.current));
+                const currIds = new Set(Object.keys(currentMembers));
+
+                // Joined
+                for (const id of currIds) {
+                    if (!prevIds.has(id) && id !== session.id) {
+                        WPNotify.memberJoined(currentMembers[id]?.name || 'Ai đó');
+                    }
+                }
+                // Left
+                for (const id of prevIds) {
+                    if (!currIds.has(id) && id !== session.id) {
+                        WPNotify.memberLeft(prevMembersRef.current[id]?.name || 'Ai đó');
+                    }
+                }
+            }
+
             prevMembersRef.current = currentMembers;
             setRoom(roomData);
 
@@ -376,11 +398,10 @@ const WatchPartyRoom = () => {
         isSyncing.current = true;
 
         if (video.paused) {
-            // Only play if all members ready (barrier guard)
             const members = roomRef.current?.members;
             if (!allMembersReady(members)) {
                 isSyncing.current = false;
-                return; // Don't start yet — show barrier UI
+                return;
             }
             video.play().catch(() => { video.muted = true; setIsMuted(true); video.play().catch(() => { }); });
             watchPartyService.syncPlayback(roomId, {
@@ -390,6 +411,7 @@ const WatchPartyRoom = () => {
                 playbackRate: video.playbackRate,
             });
             watchPartyService.updateRoomStatus(roomId, 'playing');
+            WPNotify.hostPlayed(nickname || 'Host');
         } else {
             video.pause();
             watchPartyService.syncPlayback(roomId, {
@@ -399,10 +421,11 @@ const WatchPartyRoom = () => {
                 playbackRate: video.playbackRate,
             });
             watchPartyService.updateRoomStatus(roomId, 'paused');
+            WPNotify.hostPaused(nickname || 'Host');
         }
 
         setTimeout(() => { isSyncing.current = false; }, 1000);
-    }, [room, currentEpisode, roomId, videoReady, isHost]);
+    }, [room, currentEpisode, roomId, videoReady, isHost, nickname]);
 
     const handleSeek = (e) => {
         const video = videoRef.current;
@@ -466,6 +489,7 @@ const WatchPartyRoom = () => {
     const handleEpisodeChange = async (epIdx) => {
         if (!isHost) return;
         setCurrentEpisode(epIdx);
+        const epName = episodes[epIdx]?.name || `Tập ${epIdx + 1}`;
         await watchPartyService.syncPlayback(roomId, {
             episode: epIdx,
             currentTime: 0,
@@ -473,6 +497,7 @@ const WatchPartyRoom = () => {
             playbackRate: 1,
         });
         await watchPartyService.updateRoomStatus(roomId, 'waiting');
+        WPNotify.hostChangedEpisode(nickname || 'Host', epName);
         setPlaybackRate(1);
         if (videoRef.current) videoRef.current.playbackRate = 1;
     };
@@ -643,6 +668,22 @@ const WatchPartyRoom = () => {
                                         <span className={styles.syncLabel}>x{playbackRate}</span>
                                     )}
                                     <button className={styles.iconBtn} onClick={handleFullscreen}><FiMaximize /></button>
+                                    {document.pictureInPictureEnabled && (
+                                        <button
+                                            className={styles.iconBtn}
+                                            onClick={async () => {
+                                                const v = videoRef.current;
+                                                if (!v) return;
+                                                try {
+                                                    if (document.pictureInPictureElement) await document.exitPictureInPicture();
+                                                    else await v.requestPictureInPicture();
+                                                } catch (e) { console.warn(e); }
+                                            }}
+                                            title="Picture-in-Picture"
+                                        >
+                                            <FiSquare size={16} />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         )}

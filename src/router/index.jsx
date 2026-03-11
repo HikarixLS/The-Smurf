@@ -11,6 +11,7 @@ import { logPageView } from '@/services/firebase/config';
 // Components
 import Loader from '@/components/common/Loader/Loader';
 import CursorGlow from '@/components/common/CursorGlow/CursorGlow';
+import { ToastProvider } from '@/services/toast/ToastContext';
 
 // Lazy loaded pages
 const Home = lazy(() => import('@/pages/Home/Home'));
@@ -58,27 +59,29 @@ const baseName = import.meta.env.VITE_PLATFORM === 'android' ? '/' : '/The-Smurf
 const AppRouter = () => {
   return (
     <BrowserRouter basename={baseName}>
-      <CursorGlow />
-      <AuthProvider>
-        <AnalyticsTracker />
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path={routes.HOME} element={<ProtectedRoute><Home /></ProtectedRoute>} />
-            <Route path={routes.SEARCH} element={<ProtectedRoute><Search /></ProtectedRoute>} />
-            <Route path={routes.BROWSE} element={<ProtectedRoute><Browse /></ProtectedRoute>} />
-            <Route path={routes.MOVIE_DETAIL} element={<ProtectedRoute><MovieDetail /></ProtectedRoute>} />
-            <Route path={routes.WATCH} element={<ProtectedRoute><Watch /></ProtectedRoute>} />
-            <Route path={routes.WATCH_PARTY} element={<ProtectedRoute><Watch /></ProtectedRoute>} />
-            <Route path="/watch-party" element={<ProtectedRoute><WatchParty /></ProtectedRoute>} />
-            <Route path="/watch-party/room/:roomId" element={<ProtectedRoute><WatchPartyRoom /></ProtectedRoute>} />
-            <Route path={routes.PROFILE} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path={routes.WATCHLIST} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path={routes.HISTORY} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path={routes.NOT_FOUND} element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </AuthProvider>
+      <ToastProvider>
+        <CursorGlow />
+        <AuthProvider>
+          <AnalyticsTracker />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path={routes.HOME} element={<ProtectedRoute><Home /></ProtectedRoute>} />
+              <Route path={routes.SEARCH} element={<ProtectedRoute><Search /></ProtectedRoute>} />
+              <Route path={routes.BROWSE} element={<ProtectedRoute><Browse /></ProtectedRoute>} />
+              <Route path={routes.MOVIE_DETAIL} element={<ProtectedRoute><MovieDetail /></ProtectedRoute>} />
+              <Route path={routes.WATCH} element={<ProtectedRoute><Watch /></ProtectedRoute>} />
+              <Route path={routes.WATCH_PARTY} element={<ProtectedRoute><Watch /></ProtectedRoute>} />
+              <Route path="/watch-party" element={<ProtectedRoute><WatchParty /></ProtectedRoute>} />
+              <Route path="/watch-party/room/:roomId" element={<ProtectedRoute><WatchPartyRoom /></ProtectedRoute>} />
+              <Route path={routes.PROFILE} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path={routes.WATCHLIST} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path={routes.HISTORY} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path={routes.NOT_FOUND} element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 };

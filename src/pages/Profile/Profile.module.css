@@ -197,6 +197,43 @@
   color: rgba(255, 255, 255, 0.4);
 }
 
+/* Watch progress bar in history list */
+.progressBarWrapper {
+  position: relative;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  margin-top: 4px;
+  overflow: visible;
+}
+
+.progressBarFill {
+  height: 100%;
+  background: var(--gradient-primary, linear-gradient(90deg, #667eea, #764ba2));
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progressLabel {
+  position: absolute;
+  right: 0;
+  top: 5px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.playIcon {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.3);
+  transition: color 0.2s ease;
+}
+
+.movieItem:hover .playIcon {
+  color: var(--color-accent, #667eea);
+}
+
+
 @media (max-width: 1024px) {
   .grid {
     grid-template-columns: 1fr;
