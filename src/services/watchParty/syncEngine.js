@@ -15,8 +15,16 @@
 
 // ---- Constants ----
 
-/** Max drift (seconds) before a force-seek is issued */
-export const SYNC_THRESHOLD_SECONDS = 1.5;
+/** Max drift (seconds) before a force-seek is issued.
+ *  Set to 2.5s to avoid excessive seeks for viewers with high delivery latency (e.g. users in the US). */
+export const SYNC_THRESHOLD_SECONDS = 2.5;
+
+/**
+ * Extra seconds added to the estimated host time to compensate for Firebase
+ * real-time delivery delay (typically 100–800 ms depending on region).
+ * Prevents viewers on far-away servers from appearing behind the host.
+ */
+export const DELIVERY_LATENCY_BUFFER_SEC = 0.3;
 
 /** Host broadcasts position every N ms as fallback drift correction */
 export const HEARTBEAT_INTERVAL_MS = 5000;

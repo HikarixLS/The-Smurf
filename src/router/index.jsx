@@ -57,12 +57,19 @@ const ProtectedRoute = ({ children }) => {
 
 const baseName = import.meta.env.VITE_PLATFORM === 'android' ? '/' : '/The-Smurf';
 
+// Hide the AI assistant on Watch Party pages
+const ConditionalAI = () => {
+  const location = useLocation();
+  if (location.pathname.startsWith('/watch-party')) return null;
+  return <AIAssistant />;
+};
+
 const AppRouter = () => {
   return (
     <BrowserRouter basename={baseName}>
       <ToastProvider>
         <CursorGlow />
-        <AIAssistant />
+        <ConditionalAI />
         <AuthProvider>
           <AnalyticsTracker />
           <Suspense fallback={<PageLoader />}>

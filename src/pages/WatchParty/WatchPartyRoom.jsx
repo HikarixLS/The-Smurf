@@ -13,6 +13,7 @@ import { useAuth } from '@/services/firebase/AuthContext';
 import {
     SYNC_THRESHOLD_SECONDS,
     HEARTBEAT_INTERVAL_MS,
+    DELIVERY_LATENCY_BUFFER_SEC,
     estimateHostTime,
     allMembersReady,
 } from '@/services/watchParty/syncEngine';
@@ -207,9 +208,12 @@ const WatchPartyRoom = () => {
 
         if (Hls.isSupported()) {
             const hls = new Hls({
-                maxBufferLength: 30,
-                maxMaxBufferLength: 60,
+                // Larger buffers help viewers in high-latency regions (e.g. US)
+                // avoid constant re-buffering when segment delivery is slow.
+                maxBufferLength: 60,
+                maxMaxBufferLength: 120,
                 enableWorker: true,
+                lowLatencyMode: false, // stability > low-latency for watch party
                 xhrSetup: (xhr) => { xhr.withCredentials = false; },
             });
 
@@ -301,13 +305,16 @@ const WatchPartyRoom = () => {
         const video = videoRef.current;
         if (!video || isSyncing.current || roomRef.current?.hostId === session.id) return;
 
+        // Add a small delivery buffer to compensate for Firebase real-time
+        // propagation delay (100–800 ms depending on region). This prevents
+        // viewers in distant locations (e.g. US) from always appearing behind.
         const estimated = estimateHostTime(
             playback.currentTime,
             playback.updatedAt,
             playback.isPlaying,
             0,
             watchPartyService.getTrueTime
-        );
+        ) + DELIVERY_LATENCY_BUFFER_SEC;
 
         const drift = Math.abs(video.currentTime - estimated);
         isSyncing.current = true;
