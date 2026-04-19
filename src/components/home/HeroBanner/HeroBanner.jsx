@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlay, FiInfo, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
-import { getImageUrl } from '@/utils/helpers';
+import { getImageUrl, getWebpImageUrl, handleOptimizedImageError } from '@/utils/helpers';
 import styles from './HeroBanner.module.css';
 
 const HeroBanner = ({ movies = [] }) => {
@@ -36,7 +36,8 @@ const HeroBanner = ({ movies = [] }) => {
     if (featuredMovies.length === 0) return null;
 
     const current = featuredMovies[currentIndex];
-    const posterUrl = getImageUrl(current.poster_url || current.thumb_url);
+    const originalPosterUrl = getImageUrl(current.poster_url || current.thumb_url);
+    const posterUrl = getWebpImageUrl(current.poster_url || current.thumb_url);
     const rating = current.tmdb?.vote_average || 0;
     const displayTitle = current.origin_name || current.name;
 
@@ -46,6 +47,7 @@ const HeroBanner = ({ movies = [] }) => {
             <div className={styles.backdrop}>
                 <img
                     src={posterUrl}
+                    data-original-src={originalPosterUrl}
                     alt={displayTitle}
                     className={styles.backdropImage}
                     key={currentIndex}
@@ -53,6 +55,7 @@ const HeroBanner = ({ movies = [] }) => {
                     loading="eager"
                     width={1920}
                     height={1080}
+                    onError={(e) => handleOptimizedImageError(e, { hideOnFail: true })}
                 />
                 <div className={styles.gradientOverlay} />
             </div>
@@ -107,21 +110,28 @@ const HeroBanner = ({ movies = [] }) => {
 
                 {/* Thumbnail previews */}
                 <div className={styles.thumbnails}>
-                    {featuredMovies.map((movie, index) => (
+                    {featuredMovies.map((movie, index) => {
+                        const originalThumbUrl = getImageUrl(movie.thumb_url || movie.poster_url);
+                        const thumbUrl = getWebpImageUrl(movie.thumb_url || movie.poster_url);
+
+                        return (
                         <div
                             key={movie.slug || index}
                             className={`${styles.thumbnail} ${index === currentIndex ? styles.thumbnailActive : ''}`}
                             onClick={() => goToSlide(index)}
                         >
                             <img
-                                src={getImageUrl(movie.thumb_url || movie.poster_url)}
+                                src={thumbUrl}
+                                data-original-src={originalThumbUrl}
                                 alt={movie.origin_name || movie.name}
                                 loading="lazy"
                                 width={120}
                                 height={68}
+                                onError={(e) => handleOptimizedImageError(e, { hideOnFail: true })}
                             />
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
 

@@ -53,11 +53,55 @@ export const generateId = () => {
 // Fallback placeholder (inline SVG — no external request)
 export const PLACEHOLDER_IMG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450' viewBox='0 0 300 450'%3E%3Crect width='300' height='450' fill='%23181828'/%3E%3Ctext x='150' y='225' text-anchor='middle' fill='%23555' font-size='14' font-family='sans-serif'%3ENo Image%3C/text%3E%3C/svg%3E`;
 
+const RASTER_IMAGE_EXT_RE = /\.(png|jpe?g)(?=($|[?#]))/i;
+
+const normalizeSrc = (value) => {
+  if (!value) return '';
+  try {
+    return new URL(value, window.location.href).href;
+  } catch {
+    return value;
+  }
+};
+
 // Get image URL
 export const getImageUrl = (path, baseUrl = 'https://img.ophim.live/uploads/movies/') => {
   if (!path) return PLACEHOLDER_IMG;
   if (path.startsWith('http')) return path;
   return baseUrl + path;
+};
+
+// Prefer WebP for JPEG/PNG when possible.
+// Caller should provide onError fallback via handleOptimizedImageError.
+export const getWebpImageUrl = (path, baseUrl = 'https://img.ophim.live/uploads/movies/') => {
+  const original = getImageUrl(path, baseUrl);
+  if (!original || original.startsWith('data:') || original.startsWith('blob:')) return original;
+  if (!RASTER_IMAGE_EXT_RE.test(original)) return original;
+  return original.replace(RASTER_IMAGE_EXT_RE, '.webp');
+};
+
+// First error: fallback from WebP -> original source.
+// Second error: fallback to placeholder (or hide if hideOnFail=true).
+export const handleOptimizedImageError = (event, options = {}) => {
+  const { fallbackSrc = PLACEHOLDER_IMG, hideOnFail = false } = options;
+  const img = event.currentTarget;
+  const originalSrc = img.dataset.originalSrc;
+
+  const normalizedCurrent = normalizeSrc(img.src);
+  const normalizedOriginal = normalizeSrc(originalSrc);
+
+  if (normalizedOriginal && normalizedCurrent !== normalizedOriginal) {
+    img.src = originalSrc;
+    return;
+  }
+
+  img.onerror = null;
+  if (hideOnFail) {
+    img.style.display = 'none';
+    return;
+  }
+
+  img.src = fallbackSrc;
 };
 
 // Get movie slug from URL

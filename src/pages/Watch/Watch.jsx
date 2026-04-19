@@ -9,6 +9,7 @@ import Loader from '@/components/common/Loader/Loader';
 import { movieService } from '@/services/api/movieService';
 import { useAuth } from '@/services/firebase/AuthContext';
 import { addToHistory, saveWatchProgress, getWatchProgress } from '@/services/firebase/watchlistService';
+import { getImageUrl, getWebpImageUrl, handleOptimizedImageError, PLACEHOLDER_IMG } from '@/utils/helpers';
 import styles from './Watch.module.css';
 
 const Watch = () => {
@@ -137,6 +138,8 @@ const Watch = () => {
   const servers = movie.episodes || [];
   const currentServerData = servers[currentServer]?.server_data || [];
   const currentVideo = currentServerData[currentEpisode];
+  const originalPosterUrl = getImageUrl(movie.poster_url || movie.thumb_url);
+  const posterUrl = getWebpImageUrl(movie.poster_url || movie.thumb_url);
 
   return (
     <>
@@ -197,16 +200,18 @@ const Watch = () => {
               {currentVideo?.link_m3u8 && !showResumeDialog ? (
                 <VideoPlayer
                   src={currentVideo.link_m3u8}
-                  poster={movie.poster_url || movie.thumb_url}
+                  poster={originalPosterUrl}
                   initialTime={resumeTime}
                   onProgress={handleProgress}
                 />
               ) : currentVideo?.link_m3u8 ? (
                 // Dialog đang hiển thị — hiển poster chờ
                 <img
-                  src={movie.poster_url || movie.thumb_url}
+                  src={posterUrl}
+                  data-original-src={originalPosterUrl}
                   alt={movie.name}
                   className={styles.posterPlaceholder}
+                  onError={(e) => handleOptimizedImageError(e, { fallbackSrc: PLACEHOLDER_IMG })}
                 />
               ) : currentVideo?.link_embed ? (
                 <iframe

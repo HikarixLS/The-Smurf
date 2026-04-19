@@ -3,20 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { FiX, FiSend, FiFilm, FiChevronDown } from 'react-icons/fi';
 import { getMovieRecommendations } from '@/services/ai/geminiService';
 import { movieService } from '@/services/api/movieService';
-import { getImageUrl, PLACEHOLDER_IMG } from '@/utils/helpers';
+import { getImageUrl, getWebpImageUrl, handleOptimizedImageError, PLACEHOLDER_IMG } from '@/utils/helpers';
 import styles from './AIAssistant.module.css';
 
 // ── Mini movie card shown inside chat ─────────────────────────────────────────
 const MiniMovieCard = ({ movie }) => {
     const navigate = useNavigate();
-    const posterUrl = getImageUrl(movie.poster_url || movie.thumb_url);
+    const originalPosterUrl = getImageUrl(movie.poster_url || movie.thumb_url);
+    const posterUrl = getWebpImageUrl(movie.poster_url || movie.thumb_url);
     return (
         <div className={styles.miniCard} onClick={() => navigate(`/movie/${movie.slug}`)}>
             <img
                 src={posterUrl}
+                data-original-src={originalPosterUrl}
                 alt={movie.name}
                 className={styles.miniPoster}
-                onError={e => { e.target.onerror = null; e.target.src = PLACEHOLDER_IMG; }}
+                onError={e => handleOptimizedImageError(e, { fallbackSrc: PLACEHOLDER_IMG })}
             />
             <div className={styles.miniInfo}>
                 <p className={styles.miniTitle}>{movie.origin_name || movie.name}</p>

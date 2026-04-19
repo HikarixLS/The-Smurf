@@ -6,7 +6,7 @@ import { database } from '@/services/firebase/config';
 import Header from '@/components/layout/Header/Header';
 import Footer from '@/components/layout/Footer/Footer';
 import { useAuth } from '@/services/firebase/AuthContext';
-import { getImageUrl, PLACEHOLDER_IMG } from '@/utils/helpers';
+import { getImageUrl, getWebpImageUrl, handleOptimizedImageError, PLACEHOLDER_IMG } from '@/utils/helpers';
 import styles from './Profile.module.css';
 
 const Profile = () => {
@@ -114,10 +114,11 @@ const Profile = () => {
               }}
             >
               <img
-                src={getImageUrl(item.thumb_url)}
+                src={getWebpImageUrl(item.thumb_url)}
+                data-original-src={getImageUrl(item.thumb_url)}
                 alt={item.origin_name || item.name || ''}
                 className={styles.movieThumb}
-                onError={e => { e.target.onerror = null; e.target.src = PLACEHOLDER_IMG; }}
+                onError={e => handleOptimizedImageError(e, { fallbackSrc: PLACEHOLDER_IMG })}
               />
               <div className={styles.movieItemInfo}>
                 <span className={styles.movieItemTitle}>{item.origin_name || item.name || 'Unknown'}</span>

@@ -4,7 +4,7 @@ import { FiSearch, FiX } from 'react-icons/fi';
 import PropTypes from 'prop-types';
 import { searchService } from '@/services/api/searchService';
 import useDebounce from '@/hooks/useDebounce';
-import { getImageUrl, PLACEHOLDER_IMG } from '@/utils/helpers';
+import { getImageUrl, getWebpImageUrl, handleOptimizedImageError, PLACEHOLDER_IMG } from '@/utils/helpers';
 import styles from './SearchBar.module.css';
 
 const SearchBar = ({ onSearch, autoFocus = false }) => {
@@ -125,10 +125,11 @@ const SearchBar = ({ onSearch, autoFocus = false }) => {
               onMouseDown={() => handleSuggestionClick(movie)}
             >
               <img
-                src={getImageUrl(movie.poster_url || movie.thumb_url)}
+                src={getWebpImageUrl(movie.poster_url || movie.thumb_url)}
+                data-original-src={getImageUrl(movie.poster_url || movie.thumb_url)}
                 alt={movie.name}
                 className={styles.itemThumb}
-                onError={(e) => { e.target.onerror = null; e.target.src = PLACEHOLDER_IMG; }}
+                onError={(e) => handleOptimizedImageError(e, { fallbackSrc: PLACEHOLDER_IMG })}
               />
               <div className={styles.itemContent}>
                 <div className={styles.itemTitle}>{movie.name}</div>

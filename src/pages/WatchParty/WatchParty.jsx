@@ -6,7 +6,7 @@ import Footer from '@/components/layout/Footer/Footer';
 import { watchPartyService } from '@/services/firebase/watchPartyService';
 import { isFirebaseConfigured } from '@/services/firebase/config';
 import { movieService } from '@/services/api/movieService';
-import { getImageUrl } from '@/utils/helpers';
+import { getImageUrl, getWebpImageUrl, handleOptimizedImageError } from '@/utils/helpers';
 import styles from './WatchParty.module.css';
 
 const WatchParty = () => {
@@ -209,10 +209,11 @@ const WatchParty = () => {
                                                     onClick={() => handleSelectMovie(movie)}
                                                 >
                                                     <img
-                                                        src={getImageUrl(movie.thumb_url || movie.poster_url)}
+                                                        src={getWebpImageUrl(movie.thumb_url || movie.poster_url)}
+                                                        data-original-src={getImageUrl(movie.thumb_url || movie.poster_url)}
                                                         alt={movie.name}
                                                         className={styles.searchThumb}
-                                                        onError={e => { e.target.style.display = 'none'; }}
+                                                        onError={e => handleOptimizedImageError(e, { hideOnFail: true })}
                                                     />
                                                     <div className={styles.searchItemInfo}>
                                                         <span className={styles.searchItemName}>{movie.name}</span>
@@ -236,10 +237,11 @@ const WatchParty = () => {
                             {selectedMovie && (
                                 <div className={styles.selectedMovie}>
                                     <img
-                                        src={getImageUrl(selectedMovie.thumb_url || selectedMovie.poster_url)}
+                                        src={getWebpImageUrl(selectedMovie.thumb_url || selectedMovie.poster_url)}
+                                        data-original-src={getImageUrl(selectedMovie.thumb_url || selectedMovie.poster_url)}
                                         alt={selectedMovie.name}
                                         className={styles.selectedThumb}
-                                        onError={e => { e.target.style.display = 'none'; }}
+                                        onError={e => handleOptimizedImageError(e, { hideOnFail: true })}
                                     />
                                     <div className={styles.selectedInfo}>
                                         <h4>{selectedMovie.name}</h4>
@@ -302,9 +304,10 @@ const WatchParty = () => {
                                 >
                                     <div className={styles.roomThumbnail}>
                                         <img
-                                            src={room.movieThumb}
+                                            src={getWebpImageUrl(room.movieThumb, '')}
+                                            data-original-src={getImageUrl(room.movieThumb, '')}
                                             alt={room.movieName}
-                                            onError={(e) => { e.target.style.display = 'none'; }}
+                                            onError={(e) => handleOptimizedImageError(e, { hideOnFail: true })}
                                         />
                                         <div className={styles.roomOverlay}>
                                             <button className={styles.joinBtn}>

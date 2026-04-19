@@ -2,13 +2,14 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlay } from 'react-icons/fi';
 import PropTypes from 'prop-types';
-import { getImageUrl, PLACEHOLDER_IMG } from '@/utils/helpers';
+import { getImageUrl, getWebpImageUrl, handleOptimizedImageError, PLACEHOLDER_IMG } from '@/utils/helpers';
 import styles from './MovieCard.module.css';
 
 const MovieCard = ({ movie }) => {
   const navigate = useNavigate();
 
-  const posterUrl = getImageUrl(movie.poster_url || movie.thumb_url);
+  const originalPosterUrl = getImageUrl(movie.poster_url || movie.thumb_url);
+  const posterUrl = getWebpImageUrl(movie.poster_url || movie.thumb_url);
   const rating = movie.imdb?.rating || 0;
   const displayTitle = movie.origin_name || movie.name;
   const subTitle = movie.origin_name && movie.name !== movie.origin_name ? movie.name : '';
@@ -25,12 +26,13 @@ const MovieCard = ({ movie }) => {
       <div className={styles.posterContainer}>
         <img
           src={posterUrl}
+          data-original-src={originalPosterUrl}
           alt={displayTitle}
           className={styles.poster}
           loading="lazy"
           width={300}
           height={450}
-          onError={(e) => { e.target.onerror = null; e.target.src = PLACEHOLDER_IMG; }}
+          onError={(e) => handleOptimizedImageError(e, { fallbackSrc: PLACEHOLDER_IMG })}
         />
 
         <div className={styles.badges}>

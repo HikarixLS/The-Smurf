@@ -13,6 +13,7 @@ import Loader from '@/components/common/Loader/Loader';
 import CursorGlow from '@/components/common/CursorGlow/CursorGlow';
 import { ToastProvider } from '@/services/toast/ToastContext';
 import AIAssistant from '@/components/common/AIAssistant/AIAssistant';
+import LibraryUpdateWatcher from '@/components/common/LibraryUpdateWatcher/LibraryUpdateWatcher';
 
 // Lazy loaded pages
 const Home = lazy(() => import('@/pages/Home/Home'));
@@ -72,6 +73,7 @@ const AppRouter = () => {
         <ConditionalAI />
         <AuthProvider>
           <AnalyticsTracker />
+          <LibraryUpdateWatcher />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/login" element={<Login />} />

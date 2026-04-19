@@ -6,7 +6,7 @@ import Footer from '@/components/layout/Footer/Footer';
 import MovieRow from '@/components/home/MovieRow/MovieRow';
 import Loader from '@/components/common/Loader/Loader';
 import { movieService } from '@/services/api/movieService';
-import { getImageUrl, stripHtml } from '@/utils/helpers';
+import { getImageUrl, getWebpImageUrl, handleOptimizedImageError, PLACEHOLDER_IMG, stripHtml } from '@/utils/helpers';
 import { useAuth } from '@/services/firebase/AuthContext';
 import {
   addToFavorites, removeFromFavorites, isInFavorites,
@@ -139,8 +139,10 @@ const MovieDetail = () => {
     </>
   );
 
-  const posterUrl = getImageUrl(movie.poster_url || movie.thumb_url);
-  const thumbUrl = getImageUrl(movie.thumb_url || movie.poster_url);
+  const originalPosterUrl = getImageUrl(movie.poster_url || movie.thumb_url);
+  const posterUrl = getWebpImageUrl(movie.poster_url || movie.thumb_url);
+  const originalThumbUrl = getImageUrl(movie.thumb_url || movie.poster_url);
+  const thumbUrl = getWebpImageUrl(movie.thumb_url || movie.poster_url);
   const heroImage = posterUrl;
   const rating = movie.imdb?.rating || movie.tmdb?.vote_average || 0;
   const voteCount = movie.tmdb?.vote_count || 0;
@@ -181,12 +183,24 @@ const MovieDetail = () => {
       <main className={styles.movieDetail}>
         {/* Hero backdrop */}
         <div className={styles.hero}>
-          <img src={heroImage} alt="" className={styles.heroImage} />
+          <img
+            src={heroImage}
+            data-original-src={originalPosterUrl}
+            alt=""
+            className={styles.heroImage}
+            onError={(e) => handleOptimizedImageError(e, { hideOnFail: true })}
+          />
           <div className={styles.heroOverlay} />
 
           <div className={styles.heroContent}>
             <div className={styles.posterWrapper}>
-              <img src={thumbUrl} alt={movie.name} className={styles.poster} />
+              <img
+                src={thumbUrl}
+                data-original-src={originalThumbUrl}
+                alt={movie.name}
+                className={styles.poster}
+                onError={(e) => handleOptimizedImageError(e, { fallbackSrc: PLACEHOLDER_IMG })}
+              />
             </div>
 
             <div className={styles.heroInfo}>
