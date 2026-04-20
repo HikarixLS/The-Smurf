@@ -54,7 +54,7 @@ jobs:
           xcodebuild -project ios/App/App.xcodeproj \
             -target App \
             -configuration Release \
-            -destination generic/platform=iOS \
+            -sdk iphoneos \
             -derivedDataPath ios/build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
