@@ -4,6 +4,7 @@ import Footer from '@/components/layout/Footer/Footer';
 import HeroBanner from '@/components/home/HeroBanner/HeroBanner';
 import MovieRow from '@/components/home/MovieRow/MovieRow';
 import { movieService } from '@/services/api/movieService';
+import { isLowPerformanceMode } from '@/utils/device';
 import useSEO from '@/hooks/useSEO';
 import styles from './Home.module.css';
 
@@ -15,6 +16,9 @@ const Home = () => {
   const [animatedMovies, setAnimatedMovies] = useState([]);
   const [tvShowMovies, setTvShowMovies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const lowPerformanceMode = isLowPerformanceMode();
+  const listLimit = lowPerformanceMode ? 12 : 24;
+  const featuredLimit = lowPerformanceMode ? 4 : 8;
 
   useSEO('Trang chủ', 'Xem phim online miễn phí chất lượng cao. Phim mới, phim bộ, phim lẻ, hoạt hình cập nhật hàng ngày.');
 
@@ -30,8 +34,8 @@ const Home = () => {
         const homeRes = await movieService.getHomeData();
         if (homeRes?.data?.items) {
           const items = homeRes.data.items;
-          setFeaturedMovies(items.slice(0, 8));
-          setNewMovies(items);
+          setFeaturedMovies(items.slice(0, featuredLimit));
+          setNewMovies(items.slice(0, listLimit));
           homeSuccess = true;
         }
       } catch {
@@ -39,13 +43,13 @@ const Home = () => {
       }
 
       const calls = [
-        movieService.getSeries(1, 24),
-        movieService.getSingleMovies(1, 24),
-        movieService.getMovies(1, { type: 'hoathinh', limit: 24 }),
-        movieService.getMovies(1, { type: 'tvshows', limit: 24 }),
+        movieService.getSeries(1, listLimit),
+        movieService.getSingleMovies(1, listLimit),
+        movieService.getMovies(1, { type: 'hoathinh', limit: listLimit }),
+        movieService.getMovies(1, { type: 'tvshows', limit: listLimit }),
       ];
       if (!homeSuccess) {
-        calls.push(movieService.getNewReleases(1, 24));
+        calls.push(movieService.getNewReleases(1, listLimit));
       }
 
       const results = await Promise.allSettled(calls);
@@ -65,8 +69,8 @@ const Home = () => {
 
       if (!homeSuccess && results[4]?.status === 'fulfilled' && results[4].value?.data?.items) {
         const items = results[4].value.data.items;
-        setFeaturedMovies(items.slice(0, 8));
-        setNewMovies(items);
+        setFeaturedMovies(items.slice(0, featuredLimit));
+        setNewMovies(items.slice(0, listLimit));
       }
     } catch (err) {
       console.warn('Error fetching home data:', err);
@@ -84,35 +88,35 @@ const Home = () => {
         <div className={styles.sections}>
           <MovieRow
             title="Phim Mới Cập Nhật"
-            movies={newMovies}
+            movies={newMovies.slice(0, listLimit)}
             loading={loading}
             linkTo="/browse"
           />
 
           <MovieRow
             title="Phim Bộ Mới"
-            movies={seriesMovies}
+            movies={seriesMovies.slice(0, listLimit)}
             loading={loading}
             linkTo="/browse?type=series"
           />
 
           <MovieRow
             title="Phim Lẻ Mới"
-            movies={singleMovies}
+            movies={singleMovies.slice(0, listLimit)}
             loading={loading}
             linkTo="/browse?type=single"
           />
 
           <MovieRow
             title="Hoạt Hình"
-            movies={animatedMovies}
+            movies={animatedMovies.slice(0, listLimit)}
             loading={loading}
             linkTo="/browse?type=hoathinh"
           />
 
           <MovieRow
             title="TV Shows"
-            movies={tvShowMovies}
+            movies={tvShowMovies.slice(0, listLimit)}
             loading={loading}
             linkTo="/browse?type=tvshows"
           />

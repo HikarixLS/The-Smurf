@@ -4,6 +4,10 @@
   padding-top: 70px;
 }
 
+.watchTvLite {
+  padding-top: 64px;
+}
+
 .loadingPage {
   min-height: 100vh;
   display: flex;
@@ -103,6 +107,12 @@
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
 }
 
+.playerWrapperTvLite {
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: none;
+}
+
 /* Resume dialog overlay */
 .resumeDialog {
   position: absolute;
@@ -115,6 +125,11 @@
   backdrop-filter: blur(4px);
 }
 
+.watchTvLite .resumeDialog {
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: none;
+}
+
 .resumeDialogBox {
   background: rgba(15, 15, 20, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -124,6 +139,12 @@
   max-width: 320px;
   width: 90%;
   animation: fadeInDialog 0.25s ease both;
+}
+
+.watchTvLite .resumeDialogBox {
+  border-radius: 12px;
+  padding: 22px 24px;
+  animation: none;
 }
 
 @keyframes fadeInDialog {
@@ -206,6 +227,10 @@
   object-fit: cover;
   display: block;
   filter: blur(2px) brightness(0.4);
+}
+
+.watchTvLite .posterPlaceholder {
+  filter: brightness(0.42);
 }
 
 .player {

@@ -7,12 +7,12 @@ import { lazy, Suspense, useEffect } from 'react';
 // Auth & Analytics
 import { AuthProvider, useAuth } from '@/services/firebase/AuthContext';
 import { isFirebaseConfigured, logPageView } from '@/services/firebase/config';
+import { isLowPerformanceMode } from '@/utils/device';
 
 // Components
 import Loader from '@/components/common/Loader/Loader';
 import CursorGlow from '@/components/common/CursorGlow/CursorGlow';
 import { ToastProvider } from '@/services/toast/ToastContext';
-import AIAssistant from '@/components/common/AIAssistant/AIAssistant';
 import LibraryUpdateWatcher from '@/components/common/LibraryUpdateWatcher/LibraryUpdateWatcher';
 
 // Lazy loaded pages
@@ -26,6 +26,7 @@ const WatchPartyRoom = lazy(() => import('@/pages/WatchParty/WatchPartyRoom'));
 const Profile = lazy(() => import('@/pages/Profile/Profile'));
 const Login = lazy(() => import('@/pages/Login/Login'));
 const NotFound = lazy(() => import('@/pages/NotFound/NotFound'));
+const AIAssistant = lazy(() => import('@/components/common/AIAssistant/AIAssistant'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -62,7 +63,7 @@ const ProtectedRoute = ({ children }) => {
 const baseName = import.meta.env.VITE_PLATFORM === 'android' ? '/' : '/The-Smurf';
 
 // Hide the AI assistant on pages where it can obstruct auth/immersive flows
-const ConditionalAI = () => {
+const ConditionalAI = ({ lowPerformanceMode = false }) => {
   const location = useLocation();
   const isLoginRoute =
     location.pathname === '/login' ||
@@ -70,20 +71,27 @@ const ConditionalAI = () => {
     location.pathname.endsWith('/login') ||
     location.pathname.endsWith('/login/');
 
+  if (lowPerformanceMode) return null;
   if (location.pathname.startsWith('/watch-party')) return null;
   if (isLoginRoute) return null;
-  return <AIAssistant />;
+  return (
+    <Suspense fallback={null}>
+      <AIAssistant />
+    </Suspense>
+  );
 };
 
 const AppRouter = () => {
+  const lowPerformanceMode = isLowPerformanceMode();
+
   return (
     <BrowserRouter basename={baseName}>
       <ToastProvider>
-        <CursorGlow />
-        <ConditionalAI />
+        {!lowPerformanceMode && <CursorGlow />}
+        <ConditionalAI lowPerformanceMode={lowPerformanceMode} />
         <AuthProvider>
           <AnalyticsTracker />
-          <LibraryUpdateWatcher />
+          {!lowPerformanceMode && <LibraryUpdateWatcher />}
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/login" element={<Login />} />

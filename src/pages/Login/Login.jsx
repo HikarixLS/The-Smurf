@@ -4,11 +4,13 @@ import { FcGoogle } from 'react-icons/fc';
 import { FiMonitor } from 'react-icons/fi';
 import { useAuth } from '@/services/firebase/AuthContext';
 import { isFirebaseConfigured } from '@/services/firebase/config';
+import { isAndroidTv } from '@/utils/device';
 import styles from './Login.module.css';
 
 const Login = () => {
     const { user, loading, signIn } = useAuth();
     const firebaseEnabled = isFirebaseConfigured();
+    const androidTvMode = isAndroidTv();
     const [signingIn, setSigningIn] = useState(false);
     const [error, setError] = useState('');
 
@@ -60,9 +62,9 @@ const Login = () => {
     };
 
     return (
-        <div className={styles.loginPage}>
-            <div className={styles.backdrop} />
-            <div className={styles.loginCard}>
+        <div className={`${styles.loginPage} ${androidTvMode ? styles.loginPageTv : ''}`}>
+            <div className={`${styles.backdrop} ${androidTvMode ? styles.backdropTv : ''}`} />
+            <div className={`${styles.loginCard} ${androidTvMode ? styles.loginCardTv : ''}`}>
                 <div className={styles.logo}>
                     <FiMonitor size={40} />
                     <h1>The Smurf</h1>

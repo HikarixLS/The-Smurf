@@ -264,6 +264,28 @@
   border-radius: 4px;
 }
 
+/* Low-performance mode for Android TV */
+.heroBannerPerf .backdropImage,
+.heroBannerPerf .info,
+.heroBannerPerf .title {
+  animation: none;
+}
+
+.heroBannerPerf .playBtn,
+.heroBannerPerf .infoBtn,
+.heroBannerPerf .thumbnail,
+.heroBannerPerf .navPrev,
+.heroBannerPerf .navNext,
+.heroBannerPerf .dot {
+  transition: none;
+}
+
+.heroBannerPerf .infoBtn,
+.heroBannerPerf .navPrev,
+.heroBannerPerf .navNext {
+  backdrop-filter: none;
+}
+
 /* Animations */
 @keyframes fadeInScale {
   from {

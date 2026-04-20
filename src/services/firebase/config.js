@@ -10,6 +10,7 @@ import {
     signOut as firebaseSignOut,
 } from 'firebase/auth';
 import { getAnalytics, logEvent, setUserId, setUserProperties } from 'firebase/analytics';
+import { isAndroidTv } from '@/utils/device';
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -102,15 +103,6 @@ const toNormalizedText = (value) => {
     return String(value).toLowerCase();
 };
 
-const isAndroidTvDevice = () => {
-    if (!isNative()) return false;
-    const platform = window.Capacitor?.getPlatform?.();
-    if (platform !== 'android') return false;
-
-    const userAgent = toNormalizedText(window.navigator?.userAgent);
-    return /android tv|googletv|smarttv|bravia|hbbtv|aft[a-z0-9_-]*/.test(userAgent);
-};
-
 const isCredentialManagerIssue = (error) => {
     const details = [
         error?.message,
@@ -139,7 +131,7 @@ export const signInWithGoogle = async () => {
             // Native Google Sign-In via @capacitor-firebase/authentication
             // Avoids sessionStorage/popup issues on Android WebView
             const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-            const shouldBypassCredentialManager = isAndroidTvDevice();
+            const shouldBypassCredentialManager = isAndroidTv();
             const primaryOptions = shouldBypassCredentialManager
                 ? { useCredentialManager: false }
                 : {};

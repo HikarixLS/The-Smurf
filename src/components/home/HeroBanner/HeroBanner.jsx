@@ -2,21 +2,23 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlay, FiInfo, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { getImageUrl, getWebpImageUrl, handleOptimizedImageError } from '@/utils/helpers';
+import { isLowPerformanceMode } from '@/utils/device';
 import styles from './HeroBanner.module.css';
 
 const HeroBanner = ({ movies = [] }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isTransitioning, setIsTransitioning] = useState(false);
     const navigate = useNavigate();
+    const lowPerformanceMode = isLowPerformanceMode();
 
-    const featuredMovies = movies.slice(0, 8);
+    const featuredMovies = movies.slice(0, lowPerformanceMode ? 4 : 8);
 
     const goToSlide = useCallback((index) => {
         if (isTransitioning) return;
         setIsTransitioning(true);
         setCurrentIndex(index);
-        setTimeout(() => setIsTransitioning(false), 600);
-    }, [isTransitioning]);
+        setTimeout(() => setIsTransitioning(false), lowPerformanceMode ? 280 : 600);
+    }, [isTransitioning, lowPerformanceMode]);
 
     const nextSlide = useCallback(() => {
         goToSlide((currentIndex + 1) % featuredMovies.length);
@@ -28,10 +30,10 @@ const HeroBanner = ({ movies = [] }) => {
 
     // Auto-slide
     useEffect(() => {
-        if (featuredMovies.length <= 1) return;
+        if (featuredMovies.length <= 1 || lowPerformanceMode) return;
         const timer = setInterval(nextSlide, 6000);
         return () => clearInterval(timer);
-    }, [nextSlide, featuredMovies.length]);
+    }, [nextSlide, featuredMovies.length, lowPerformanceMode]);
 
     if (featuredMovies.length === 0) return null;
 
@@ -42,7 +44,7 @@ const HeroBanner = ({ movies = [] }) => {
     const displayTitle = current.origin_name || current.name;
 
     return (
-        <section className={styles.heroBanner}>
+        <section className={`${styles.heroBanner} ${lowPerformanceMode ? styles.heroBannerPerf : ''}`}>
             {/* Background */}
             <div className={styles.backdrop}>
                 <img

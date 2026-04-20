@@ -1,20 +1,41 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styles from './CursorGlow.module.css';
+import { isLowPerformanceMode } from '@/utils/device';
 
 const CursorGlow = () => {
     const glowRef = useRef(null);
     const pos = useRef({ x: 0, y: 0 });
     const target = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+    const visibleRef = useRef(false);
     const [isVisible, setIsVisible] = useState(false);
 
+    const supportsFinePointer =
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+    const shouldEnableGlow = supportsFinePointer && !isLowPerformanceMode();
+
     useEffect(() => {
+        if (!shouldEnableGlow) return undefined;
+
         const handleMouseMove = (e) => {
             target.current = { x: e.clientX, y: e.clientY };
-            if (!isVisible) setIsVisible(true);
+            if (!visibleRef.current) {
+                visibleRef.current = true;
+                setIsVisible(true);
+            }
         };
 
-        const handleMouseLeave = () => setIsVisible(false);
-        const handleMouseEnter = () => setIsVisible(true);
+        const handleMouseLeave = () => {
+            visibleRef.current = false;
+            setIsVisible(false);
+        };
+
+        const handleMouseEnter = () => {
+            visibleRef.current = true;
+            setIsVisible(true);
+        };
 
         let animationId;
         const animate = () => {
@@ -40,10 +61,9 @@ const CursorGlow = () => {
             document.removeEventListener('mouseenter', handleMouseEnter);
             cancelAnimationFrame(animationId);
         };
-    }, [isVisible]);
+    }, [shouldEnableGlow]);
 
-    // Don't show on touch devices
-    if ('ontouchstart' in window) return null;
+    if (!shouldEnableGlow) return null;
 
     return (
         <div

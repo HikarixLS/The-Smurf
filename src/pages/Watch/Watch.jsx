@@ -10,6 +10,7 @@ import { movieService } from '@/services/api/movieService';
 import { useAuth } from '@/services/firebase/AuthContext';
 import { addToHistory, saveWatchProgress, getWatchProgress } from '@/services/firebase/watchlistService';
 import { getImageUrl, getWebpImageUrl, handleOptimizedImageError, PLACEHOLDER_IMG } from '@/utils/helpers';
+import { isAndroidTv } from '@/utils/device';
 import styles from './Watch.module.css';
 
 const Watch = () => {
@@ -17,6 +18,7 @@ const Watch = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const androidTvMode = isAndroidTv();
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentEpisode, setCurrentEpisode] = useState(() => {
@@ -25,7 +27,7 @@ const Watch = () => {
   });
   const [currentServer, setCurrentServer] = useState(0);
   const [relatedMovies, setRelatedMovies] = useState([]);
-  const [showEpisodes, setShowEpisodes] = useState(true);
+  const [showEpisodes, setShowEpisodes] = useState(!androidTvMode);
   const [savedProgress, setSavedProgress] = useState(null); // tiến trình đọc từ Firebase
   const [showResumeDialog, setShowResumeDialog] = useState(false);
   const [resumeTime, setResumeTime] = useState(0); // thời gian seek khi tiếp tục
@@ -37,7 +39,7 @@ const Watch = () => {
 
   useEffect(() => {
     fetchMovieDetail();
-  }, [slug]);
+  }, [slug, androidTvMode]);
 
   // Đọc tiến trình đã lưu khi load phim — hiển thị dialog nếu có
   useEffect(() => {
@@ -78,11 +80,12 @@ const Watch = () => {
     };
   }, [user, slug, currentEpisode, currentServer]);
 
-  // Callback nhận progress từ VideoPlayer - throttle 5 giây
+  // Callback nhận progress từ VideoPlayer - TV mode saves less frequently to reduce write overhead.
+  const progressSaveInterval = androidTvMode ? 12000 : 5000;
   const handleProgress = useCallback(({ currentTime, duration }) => {
     latestProgressRef.current = { currentTime, duration };
     const now = Date.now();
-    if (now - lastSaveRef.current < 5000) return;
+    if (now - lastSaveRef.current < progressSaveInterval) return;
     lastSaveRef.current = now;
     if (user && slug) {
       saveWatchProgress(user.uid, slug, {
@@ -91,7 +94,7 @@ const Watch = () => {
         serverIndex: currentServer,
       }).catch(() => { });
     }
-  }, [user, slug, currentEpisode, currentServer]);
+  }, [user, slug, currentEpisode, currentServer, progressSaveInterval]);
 
 
   const fetchMovieDetail = async () => {
@@ -101,7 +104,7 @@ const Watch = () => {
       if (response?.data?.item) {
         setMovie(response.data.item);
         // Fetch related
-        if (response.data.item.category?.length > 0) {
+        if (!androidTvMode && response.data.item.category?.length > 0) {
           try {
             const catRes = await movieService.getMoviesByCategory(
               response.data.item.category[0].slug, 1
@@ -144,7 +147,7 @@ const Watch = () => {
   return (
     <>
       <Header />
-      <main className={styles.watch}>
+      <main className={`${styles.watch} ${androidTvMode ? styles.watchTvLite : ''}`}>
         <div className={styles.container}>
           {/* Back button */}
           <div className={styles.topBar}>
@@ -161,7 +164,7 @@ const Watch = () => {
 
           {/* Video Player */}
           <div className={styles.playerSection}>
-            <div className={styles.playerWrapper}>
+            <div className={`${styles.playerWrapper} ${androidTvMode ? styles.playerWrapperTvLite : ''}`}>
               {/* Resume dialog */}
               {showResumeDialog && savedProgress && (
                 <div className={styles.resumeDialog}>
@@ -203,6 +206,7 @@ const Watch = () => {
                   poster={posterUrl}
                   initialTime={resumeTime}
                   onProgress={handleProgress}
+                  tvUltraLite={androidTvMode}
                 />
               ) : currentVideo?.link_m3u8 ? (
                 // Dialog đang hiển thị — hiển poster chờ
@@ -290,13 +294,13 @@ const Watch = () => {
         </div>
 
         {/* Related movies */}
-        {relatedMovies.length > 0 && (
+        {!androidTvMode && relatedMovies.length > 0 && (
           <div className={styles.relatedSection}>
             <MovieRow title="Phim đề xuất" movies={relatedMovies} />
           </div>
         )}
       </main>
-      <Footer />
+      {!androidTvMode && <Footer />}
     </>
   );
 };

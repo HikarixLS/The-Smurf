@@ -8,8 +8,17 @@ import {
     FiSquare,
 } from 'react-icons/fi';
 import styles from './VideoPlayer.module.css';
+import { isLowPerformanceMode } from '@/utils/device';
 
-const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp, initialTime = 0, onProgress }) => {
+const VideoPlayer = ({
+    src,
+    poster,
+    onError,
+    onTimeUpdate: onTimeUpdateProp,
+    initialTime = 0,
+    onProgress,
+    tvUltraLite = false,
+}) => {
     const videoRef = useRef(null);
     const hlsRef = useRef(null);
     const containerRef = useRef(null);
@@ -34,11 +43,28 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp, ini
         setIsBuffering(true);
         setPlaying(false);
 
+        const lowPerformanceMode = isLowPerformanceMode() || tvUltraLite;
+
         if (Hls.isSupported()) {
-            const hls = new Hls({
-                maxBufferLength: 30,
-                maxMaxBufferLength: 60,
-            });
+            const hls = new Hls(lowPerformanceMode
+                ? (tvUltraLite ? {
+                    maxBufferLength: 8,
+                    maxMaxBufferLength: 14,
+                    backBufferLength: 8,
+                    capLevelToPlayerSize: true,
+                    maxBufferSize: 12 * 1000 * 1000,
+                } : {
+                    maxBufferLength: 10,
+                    maxMaxBufferLength: 20,
+                    backBufferLength: 15,
+                    capLevelToPlayerSize: true,
+                    maxBufferSize: 20 * 1000 * 1000,
+                })
+                : {
+                    maxBufferLength: 30,
+                    maxMaxBufferLength: 60,
+                }
+            );
             hlsRef.current = hls;
             hls.loadSource(src);
             hls.attachMedia(video);
@@ -107,14 +133,22 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp, ini
         };
     }, [onTimeUpdateProp]);
 
+    const shouldAutoHideControls = !tvUltraLite;
+
     // Auto-hide controls
     const resetHideTimer = useCallback(() => {
+        if (!shouldAutoHideControls) {
+            setShowControls(true);
+            clearTimeout(hideTimer.current);
+            return;
+        }
+
         setShowControls(true);
         clearTimeout(hideTimer.current);
         if (playing) {
             hideTimer.current = setTimeout(() => setShowControls(false), 3000);
         }
-    }, [playing]);
+    }, [playing, shouldAutoHideControls]);
 
     useEffect(() => {
         resetHideTimer();
@@ -383,8 +417,8 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp, ini
         <div
             ref={containerRef}
             className={`${styles.playerContainer} ${fullscreen ? styles.fullscreen : ''}`}
-            onMouseMove={resetHideTimer}
-            onMouseLeave={() => playing && setShowControls(false)}
+            onMouseMove={shouldAutoHideControls ? resetHideTimer : undefined}
+            onMouseLeave={shouldAutoHideControls ? () => playing && setShowControls(false) : undefined}
             onClick={(e) => {
                 if (e.target === videoRef.current || e.target.classList.contains(styles.videoOverlay)) {
                     togglePlay();
@@ -415,12 +449,14 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp, ini
             )}
 
             {/* Keyboard hints */}
-            <div className={styles.keyHints}>
-                <span>Space: Dừng/Phát</span>
-                <span>F: Toàn màn hình</span>
-                <span>← →: ±10s</span>
-                <span>↑ ↓: Âm lượng</span>
-            </div>
+            {!tvUltraLite && (
+                <div className={styles.keyHints}>
+                    <span>Space: Dừng/Phát</span>
+                    <span>F: Toàn màn hình</span>
+                    <span>← →: ±10s</span>
+                    <span>↑ ↓: Âm lượng</span>
+                </div>
+            )}
 
             {/* Controls overlay */}
             <div className={`${styles.controls} ${showControls ? styles.controlsVisible : ''}`}>
@@ -477,7 +513,7 @@ const VideoPlayer = ({ src, poster, onError, onTimeUpdate: onTimeUpdateProp, ini
 
                     {/* Right controls */}
                     <div className={styles.controlsRight}>
-                        {document.pictureInPictureEnabled && (
+                        {!tvUltraLite && document.pictureInPictureEnabled && (
                             <button
                                 className={`${styles.controlBtn} ${isPiP ? styles.pipActive : ''}`}
                                 onClick={togglePiP}
