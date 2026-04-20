@@ -403,7 +403,13 @@ const MovieDetail = () => {
                         <div key={i} className={styles.castItem}>
                           <div className={styles.castAvatar} style={{ background: nameToColor(actor.name) }}>
                             {actor.photo ? (
-                              <img src={actor.photo} alt={actor.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                              <img
+                                src={getWebpImageUrl(actor.photo, '')}
+                                data-original-src={getImageUrl(actor.photo, '')}
+                                alt={actor.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                                onError={(e) => handleOptimizedImageError(e, { hideOnFail: true })}
+                              />
                             ) : (
                               (actor.name || '?').charAt(0).toUpperCase()
                             )}

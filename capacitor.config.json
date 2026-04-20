@@ -11,6 +11,12 @@
         "webContentsDebuggingEnabled": false
     },
     "plugins": {
+        "FirebaseAuthentication": {
+            "skipNativeAuth": false,
+            "providers": [
+                "google.com"
+            ]
+        },
         "SplashScreen": {
             "launchAutoHide": true
         }

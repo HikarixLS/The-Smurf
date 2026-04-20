@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "998428701311-20vo66urc3qtphrfh54tdfoprblbpq86.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.thesmurf.app",
+            "certificate_hash": "9f2f1f7cf02b7c899e80af969caed4949ea5c27d"
+          }
+        },
+        {
           "client_id": "998428701311-pg61cgodfqgugn30bak4pokkol77401l.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

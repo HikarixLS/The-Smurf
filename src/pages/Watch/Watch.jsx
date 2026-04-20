@@ -200,7 +200,7 @@ const Watch = () => {
               {currentVideo?.link_m3u8 && !showResumeDialog ? (
                 <VideoPlayer
                   src={currentVideo.link_m3u8}
-                  poster={originalPosterUrl}
+                  poster={posterUrl}
                   initialTime={resumeTime}
                   onProgress={handleProgress}
                 />

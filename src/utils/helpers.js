@@ -53,7 +53,7 @@ export const generateId = () => {
 // Fallback placeholder (inline SVG — no external request)
 export const PLACEHOLDER_IMG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='450' viewBox='0 0 300 450'%3E%3Crect width='300' height='450' fill='%23181828'/%3E%3Ctext x='150' y='225' text-anchor='middle' fill='%23555' font-size='14' font-family='sans-serif'%3ENo Image%3C/text%3E%3C/svg%3E`;
 
-const RASTER_IMAGE_EXT_RE = /\.(png|jpe?g)(?=($|[?#]))/i;
+const RASTER_IMAGE_EXT_RE = /\.(png|jpe?g|jfif|bmp)(?=($|[?#]))/i;
 
 const normalizeSrc = (value) => {
   if (!value) return '';

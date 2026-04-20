@@ -3,12 +3,18 @@ import { Navigate } from 'react-router-dom';
 import { FcGoogle } from 'react-icons/fc';
 import { FiMonitor } from 'react-icons/fi';
 import { useAuth } from '@/services/firebase/AuthContext';
+import { isFirebaseConfigured } from '@/services/firebase/config';
 import styles from './Login.module.css';
 
 const Login = () => {
     const { user, loading, signIn } = useAuth();
+    const firebaseEnabled = isFirebaseConfigured();
     const [signingIn, setSigningIn] = useState(false);
     const [error, setError] = useState('');
+
+    if (!firebaseEnabled) {
+        return <Navigate to="/" replace />;
+    }
 
     if (loading) {
         return (
@@ -29,7 +35,9 @@ const Login = () => {
             await signIn();
         } catch (err) {
             console.error('Sign-in error:', err);
-            const msg = err?.message || err?.code || JSON.stringify(err);
+            const msg = err?.message === 'FIREBASE_NOT_CONFIGURED'
+                ? 'Firebase chưa được cấu hình trong môi trường hiện tại.'
+                : (err?.message || err?.code || JSON.stringify(err));
             setError(`Lỗi: ${msg}`);
         } finally {
             setSigningIn(false);

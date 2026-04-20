@@ -6,7 +6,7 @@ import { lazy, Suspense, useEffect } from 'react';
 
 // Auth & Analytics
 import { AuthProvider, useAuth } from '@/services/firebase/AuthContext';
-import { logPageView } from '@/services/firebase/config';
+import { isFirebaseConfigured, logPageView } from '@/services/firebase/config';
 
 // Components
 import Loader from '@/components/common/Loader/Loader';
@@ -39,6 +39,8 @@ const PageLoader = () => (
   </div>
 );
 
+const firebaseEnabled = isFirebaseConfigured();
+
 // Track page views on route changes
 const AnalyticsTracker = () => {
   const location = useLocation();
@@ -50,6 +52,7 @@ const AnalyticsTracker = () => {
 
 // Protected route - requires Google sign-in
 const ProtectedRoute = ({ children }) => {
+  if (!firebaseEnabled) return children;
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;

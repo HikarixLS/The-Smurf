@@ -90,13 +90,27 @@ const isNative = () => {
 };
 
 export const signInWithGoogle = async () => {
-    if (!auth) return null;
+    if (!auth) throw new Error('FIREBASE_NOT_CONFIGURED');
     try {
         if (isNative()) {
             // Native Google Sign-In via @capacitor-firebase/authentication
             // Avoids sessionStorage/popup issues on Android WebView
             const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-            const result = await FirebaseAuthentication.signInWithGoogle();
+            let result;
+            try {
+                result = await FirebaseAuthentication.signInWithGoogle();
+            } catch (nativeError) {
+                const message = nativeError?.message || '';
+                // Android Credential Manager can fail on emulators/devices without stored credentials.
+                // Fallback to classic Google sign-in flow to show the account chooser.
+                if (message.includes('No credentials available')) {
+                    result = await FirebaseAuthentication.signInWithGoogle({
+                        useCredentialManager: false,
+                    });
+                } else {
+                    throw nativeError;
+                }
+            }
             // Get the credential from the native result
             const credential = GoogleAuthProvider.credential(
                 result.credential?.idToken,
