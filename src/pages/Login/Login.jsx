@@ -12,6 +12,19 @@ const Login = () => {
     const [signingIn, setSigningIn] = useState(false);
     const [error, setError] = useState('');
 
+    const isCredentialServiceUnsupported = (err) => {
+        const details = [err?.message, err?.code, err?.errorMessage, err]
+            .map((value) => String(value || '').toLowerCase())
+            .join(' ');
+        return details.includes('credential') && (
+            details.includes("doesn't support") ||
+            details.includes('does not support') ||
+            details.includes('not support') ||
+            details.includes('unsupported') ||
+            details.includes('service')
+        );
+    };
+
     if (!firebaseEnabled) {
         return <Navigate to="/" replace />;
     }
@@ -37,6 +50,8 @@ const Login = () => {
             console.error('Sign-in error:', err);
             const msg = err?.message === 'FIREBASE_NOT_CONFIGURED'
                 ? 'Firebase chưa được cấu hình trong môi trường hiện tại.'
+                : isCredentialServiceUnsupported(err)
+                    ? 'Thiết bị không hỗ trợ Credential Service. Vui lòng thử đăng nhập lại, ứng dụng sẽ tự chuyển sang chế độ tương thích Android TV.'
                 : (err?.message || err?.code || JSON.stringify(err));
             setError(`Lỗi: ${msg}`);
         } finally {
@@ -62,9 +77,11 @@ const Login = () => {
                 {error && <p className={styles.error}>{error}</p>}
 
                 <button
+                    type="button"
                     className={styles.googleBtn}
                     onClick={handleGoogleSignIn}
                     disabled={signingIn}
+                    autoFocus
                 >
                     <FcGoogle size={22} />
                     {signingIn ? 'Đang đăng nhập...' : 'Đăng nhập bằng Google'}

@@ -89,6 +89,49 @@ const isNative = () => {
         window.Capacitor.isNativePlatform();
 };
 
+const toNormalizedText = (value) => {
+    if (value == null) return '';
+    if (typeof value === 'string') return value.toLowerCase();
+    if (typeof value === 'object') {
+        try {
+            return JSON.stringify(value).toLowerCase();
+        } catch {
+            return String(value).toLowerCase();
+        }
+    }
+    return String(value).toLowerCase();
+};
+
+const isAndroidTvDevice = () => {
+    if (!isNative()) return false;
+    const platform = window.Capacitor?.getPlatform?.();
+    if (platform !== 'android') return false;
+
+    const userAgent = toNormalizedText(window.navigator?.userAgent);
+    return /android tv|googletv|smarttv|bravia|hbbtv|aft[a-z0-9_-]*/.test(userAgent);
+};
+
+const isCredentialManagerIssue = (error) => {
+    const details = [
+        error?.message,
+        error?.code,
+        error?.errorMessage,
+        error?.localizedMessage,
+        error,
+    ].map(toNormalizedText).join(' ');
+
+    const hasCredentialKeyword = details.includes('credential');
+    return details.includes('no credentials available') ||
+        (hasCredentialKeyword && (
+            details.includes("doesn't support") ||
+            details.includes('does not support') ||
+            details.includes('not support') ||
+            details.includes('unsupported') ||
+            details.includes('not available') ||
+            details.includes('service')
+        ));
+};
+
 export const signInWithGoogle = async () => {
     if (!auth) throw new Error('FIREBASE_NOT_CONFIGURED');
     try {
@@ -96,14 +139,18 @@ export const signInWithGoogle = async () => {
             // Native Google Sign-In via @capacitor-firebase/authentication
             // Avoids sessionStorage/popup issues on Android WebView
             const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+            const shouldBypassCredentialManager = isAndroidTvDevice();
+            const primaryOptions = shouldBypassCredentialManager
+                ? { useCredentialManager: false }
+                : {};
+
             let result;
             try {
-                result = await FirebaseAuthentication.signInWithGoogle();
+                result = await FirebaseAuthentication.signInWithGoogle(primaryOptions);
             } catch (nativeError) {
-                const message = nativeError?.message || '';
-                // Android Credential Manager can fail on emulators/devices without stored credentials.
-                // Fallback to classic Google sign-in flow to show the account chooser.
-                if (message.includes('No credentials available')) {
+                // Android Credential Manager can fail on emulators/TV devices.
+                // Fallback to classic Google sign-in flow to show account chooser.
+                if (!shouldBypassCredentialManager && isCredentialManagerIssue(nativeError)) {
                     result = await FirebaseAuthentication.signInWithGoogle({
                         useCredentialManager: false,
                     });

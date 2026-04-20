@@ -138,6 +138,17 @@
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
 }
 
+.googleBtn:focus-visible {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.24);
+    transform: scale(1.04);
+    box-shadow:
+        0 0 0 3px rgba(255, 255, 255, 0.45),
+        0 0 0 8px rgba(167, 139, 250, 0.35),
+        0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
 .googleBtn:active:not(:disabled) {
     transform: translateY(0);
 }
@@ -182,5 +193,35 @@
         margin: 16px;
         padding: 36px 24px;
         border-radius: 20px;
+    }
+}
+
+@media (min-width: 960px) and (hover: none) {
+    .loginCard {
+        max-width: 560px;
+        padding: 64px 56px;
+    }
+
+    .logo h1 {
+        font-size: 36px;
+    }
+
+    .welcome {
+        font-size: 30px;
+    }
+
+    .subtitle,
+    .tagline {
+        font-size: 18px;
+    }
+
+    .googleBtn {
+        min-height: 64px;
+        font-size: 20px;
+        border-radius: 18px;
+    }
+
+    .terms {
+        font-size: 14px;
     }
 }
