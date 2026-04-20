@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Smurf - Loading...</title>
+  <script>
+    // GitHub Pages SPA redirect — canonical spa-github-pages technique
+    // pathSegmentsToKeep=1 matches base /The-Smurf/ (one segment to preserve).
+    // Converts: /The-Smurf/watch-party/room/xyz
+    //       to: /The-Smurf/?/watch-party/room/xyz
+    // Then index.html restores the original path before React Router mounts.
+    (function (l) {
+      var pathSegmentsToKeep = 1;
+      var p = l.pathname.split('/');
+      window.location.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        p.slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+        p.slice(1 + pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    }(window.location));
+  </script>
+</head>
+
+<body>
+  <div
+    style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; background: #0a0a1a; color: #fff;">
+    <h2>Đang tải...</h2>
+  </div>
+</body>
+
+</html>
