@@ -4,7 +4,8 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const isAndroid = process.env.VITE_PLATFORM === 'android';
+  const nativePlatform = process.env.VITE_PLATFORM;
+  const isNative = nativePlatform === 'android' || nativePlatform === 'ios';
   return {
     plugins: [react()],
     resolve: {
@@ -16,7 +17,7 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: true,
     },
-    base: isAndroid ? '/' : '/The-Smurf/',
+    base: isNative ? '/' : '/The-Smurf/',
     build: {
       outDir: 'dist',
       sourcemap: false,

@@ -1,16 +1,90 @@
-# React + Vite
+# The Smurf - Push và Deploy theo 3 mục
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Repository này được chia theo 3 mục chính để push và deploy trên GitHub:
 
-Currently, two official plugins are available:
+1. File Website
+2. File Android
+3. File iOS
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 1) File Website
 
-## React Compiler
+Các file chính:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `src/`
+- `public/`
+- `index.html`
+- `vite.config.js`
 
-## Expanding the ESLint configuration
+Lệnh local:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm install
+npm run build
+```
+
+Deploy website lên GitHub Pages:
+
+```bash
+npm run deploy
+```
+
+GitHub Action tương ứng:
+
+- `.github/workflows/website-deploy.yml`
+
+## 2) File Android
+
+Các file chính:
+
+- `android/`
+- `capacitor.config.json`
+- `src/` và `public/` (web assets dùng chung)
+
+Lệnh local:
+
+```bash
+npm run android:sync
+npm run android:debug
+```
+
+APK output:
+
+- `android/app/build/outputs/apk/debug/app-debug.apk`
+
+GitHub Action tương ứng:
+
+- `.github/workflows/android-build.yml`
+
+## 3) File iOS
+
+Các file chính:
+
+- `ios/`
+- `capacitor.config.json`
+- `src/` và `public/` (web assets dùng chung)
+
+Lệnh local:
+
+```bash
+npm run ios:add
+npm run ios:sync
+npm run ios:open
+```
+
+GitHub Action tương ứng:
+
+- `.github/workflows/ios-build.yml`
+
+Lưu ý: iOS simulator chỉ chạy trên macOS (Xcode). Trên Windows, bạn vẫn có thể tạo/sync iOS project nhưng không chạy simulator native.
+
+## Push code lên GitHub
+
+Sau khi chỉnh sửa bất kỳ mục nào:
+
+```bash
+git add .
+git commit -m "update website/android/ios"
+git push origin main
+```
+
+Khi push lên `main`, workflow tương ứng sẽ tự chạy theo file thay đổi.
