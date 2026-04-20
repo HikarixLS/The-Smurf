@@ -1,1 +1,0 @@
-import{r as t,j as r,N as s}from"./vendor-react-C4QEi0vG.js";import{u as e}from"./index-pgJFACaV.js";import"./vendor-misc-B0o3Urzg.js";import"./vendor-firebase-CC-IEPCZ.js";import"./vendor-icons-BLOYavTQ.js";const j=()=>{const{user:o,loading:n,signIn:a}=e(),[i,u]=t.useState(!1),[p,g]=t.useState("");return r.jsx(s,{to:"/",replace:!0})};export{j as default};
