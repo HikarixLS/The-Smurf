@@ -44,8 +44,8 @@ jobs:
       - name: Build web assets for Android
         run: npm run build:android
 
-      - name: Capacitor sync Android
-        run: npx cap sync android
+      - name: Capacitor copy Android
+        run: npx cap copy android
 
       - name: Build debug APK
         run: |

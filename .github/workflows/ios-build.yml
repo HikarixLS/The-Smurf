@@ -41,8 +41,8 @@ jobs:
       - name: Build web assets for iOS
         run: npm run build:ios
 
-      - name: Capacitor sync iOS
-        run: npx cap sync ios
+      - name: Capacitor copy iOS
+        run: npx cap copy ios
 
       - name: Build iOS app for simulator
         run: |
