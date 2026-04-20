@@ -60,7 +60,9 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-const baseName = import.meta.env.VITE_PLATFORM === 'android' ? '/' : '/The-Smurf';
+const platform = import.meta.env.VITE_PLATFORM;
+const isNativeBundle = platform === 'android' || platform === 'ios';
+const baseName = isNativeBundle ? '/' : '/The-Smurf';
 
 // Hide the AI assistant on pages where it can obstruct auth/immersive flows
 const ConditionalAI = ({ lowPerformanceMode = false }) => {
